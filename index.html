@@ -147,6 +147,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .extimer{width:86px;height:86px;border-radius:50%;border:3px solid var(--blue);background:var(--field);color:var(--txt);font:700 21px/1.1 var(--num);flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;padding:0}
 .extimer small{font:500 12px -apple-system,system-ui,sans-serif;color:var(--mut)}
 .extimer.run{border-color:var(--yellow);background:rgba(245,197,66,.14)}
+.extimer.run.ex{border-color:#b58cf5;background:rgba(181,140,245,.16)}
 .extimer.ring{border-color:var(--red);background:var(--red);color:#fff;animation:pulse 1s infinite}
 .extimer.ring small{color:#fff}
 .extiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -161,6 +162,19 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .upd{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 8px);z-index:45;background:var(--blue);color:#fff;border-radius:14px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.45)}
 .upd[hidden]{display:none}
 .upd button{background:#fff;color:#1c1f23;border:0;border-radius:10px;padding:9px 12px;font:700 15px -apple-system,system-ui,sans-serif;flex:none}
+.exrest{background:var(--card);border:2px solid var(--yellow);border-radius:16px;padding:12px;margin-bottom:14px}
+.exrest.ex{border-color:#b58cf5}
+.exrest.ex .exrest-h b{color:#b58cf5}
+.exrest.ex .bar i{background:#b58cf5}
+.exrest.ring{border-color:var(--red)}
+.exrest-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.exrest-h span{font-weight:600}
+.exrest-h b{font:700 34px/1 var(--num);font-variant-numeric:tabular-nums}
+.exrest.ring .exrest-h b{color:var(--red)}
+.exrest .bar{margin:8px 0 10px}
+.exrest-b{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.exrest-b .btn{padding:0 4px;min-height:52px;font-size:15px}
+.exrest-def{background:none;border:0;color:var(--blue);font-size:14px;margin-top:10px;padding:4px 0;text-decoration:underline;text-underline-offset:2px;font-family:inherit}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -233,7 +247,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '15';
+const APP_VERSION = '16';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -556,9 +570,59 @@ function setRow(e, st, k, isNext) {
 }
 function afterSet(e) {
   save();
-  if (db.autoRest !== false) { resetTimer(); startTimer(); }
-  if (!e.log.some(st => st.s === 'todo')) toast('Exercice terminé, bravo !');
+  const doneEx = !e.log.some(st => st.s === 'todo'), list = EXON ? exList() : [];
+  const lastEx = !list.length || list[list.length - 1].id === e.id;
+  if (doneEx && lastEx) resetTimer(); else startRest(doneEx ? 'ex' : 'set');
+  if (doneEx && !lastEx && EXON) {
+    const i = list.findIndex(x => x.id === e.id), nx = list.slice(i + 1).find(x => x.log.some(st => st.s === 'todo')) || list[i + 1];
+    if (nx) db.exec.cur = nx.id;
+  }
+  if (doneEx) toast(lastEx ? 'Exercice terminé, bravo !' : 'Exercice terminé : place au suivant');
   render(); drawExec();
+}
+const restSet = () => db.restSet ?? (db.autoRest === false ? 0 : 90);
+const restEx = () => db.restEx ?? (db.autoRest === false ? 0 : 180);
+const fmtRest = s => !s ? 'Aucun' : s < 60 ? s + ' s' : Math.floor(s / 60) + ' min' + (s % 60 ? ' ' + (s % 60) : '');
+function startRest(kind, force) {
+  let sec = kind === 'ex' ? restEx() : restSet();
+  if (!sec && force) sec = 90;
+  if (!sec) return;
+  unlockAudio(); stopRing(); clearInterval(T.iv);
+  T.kind = kind; T.total = sec * 1000; T.end = Date.now() + T.total; run();
+}
+function restAdd(d) {
+  const ms = d * 1000;
+  if (T.state === 'running') { if (T.end + ms - Date.now() <= 1000) { resetTimer(); return; } T.end += ms; }
+  else if (T.state === 'paused') { if (T.left + ms <= 1000) { resetTimer(); return; } T.left += ms; }
+  else return;
+  T.total = Math.max(T.total + ms, remaining()); updTimer();
+}
+function restDefaults(kind) {
+  const cur = kind === 'ex' ? restEx() : restSet();
+  $('#rsheet').innerHTML = `<h2>${kind === 'ex' ? 'Repos entre les exercices' : 'Repos entre les séries'}</h2>
+    <p class="muted" style="margin:2px 0 0">${kind === 'ex' ? 'Lancée après la dernière série d’un exercice : mise en place du matériel et repos.' : 'Lancée après chaque série d’un même exercice.'}</p>
+    <div class="repgrid" style="grid-template-columns:repeat(3,1fr)">${[0, 30, 45, 60, 90, 120, 150, 180, 240, 300].map(v =>
+      `<button class="btn${v === cur ? ' pri' : ''}" style="font-size:15px" onclick="setRestDef('${kind}',${v})">${fmtRest(v)}</button>`).join('')}</div>
+    <button class="btn ghost full" onclick="closeRep()">Annuler</button>`;
+  $('#rmodal').classList.add('open');
+}
+function setRestDef(kind, v) { db[kind === 'ex' ? 'restEx' : 'restSet'] = v; save(); closeRep(); render(); drawExec(); }
+function restPanel() {
+  const ring = T.state === 'ringing', paused = T.state === 'paused', kind = T.kind || '';
+  const title = kind === 'ex' ? 'Changement d’exercice' : kind === 'set' ? 'Repos entre les séries' : 'Minuteur';
+  const cur = kind === 'ex' && db.exec ? exList().find(x => x.id === db.exec.cur) : null;
+  const w = cur ? num((cur.log.find(st => st.s === 'todo') || cur.log[0] || {}).w) : 0;
+  return `<div id="exRest" class="exrest ${kind}${ring ? ' ring' : ''}" data-st="${T.state}">
+    <div class="exrest-h"><span>${title}${paused ? ' (en pause)' : ''}</span><b id="exRestT">${ring ? '0:00' : mmss(remaining())}</b></div>
+    ${cur ? `<p class="muted" style="margin:6px 0 0">Mise en place et repos : préparez ${h(nameOf('movements', cur.movementId, cur.mvName))}${w ? ', ' + fmt(w) + ' kg' : ', sans charge'}.</p>` : ''}
+    <div class="bar"><i id="exRestBar"></i></div>
+    ${ring ? `<button class="btn pri full exbig" onclick="resetTimer()">${kind === 'ex' ? 'C’est reparti : arrêter la sonnerie' : 'Repos terminé : arrêter la sonnerie'}</button>`
+      : `<div class="exrest-b"><button class="btn" onclick="restAdd(-30)">−30 s</button>
+          <button class="btn" onclick="${paused ? 'resumeTimer()' : 'pauseTimer()'}">${paused ? '▶ Reprendre' : '⏸ Pause'}</button>
+          <button class="btn" onclick="restAdd(30)">+30 s</button>
+          <button class="btn danger" onclick="resetTimer()">Arrêter</button></div>`}
+    ${kind ? `<button class="exrest-def" onclick="restDefaults('${kind}')">Durée habituelle : ${fmtRest(kind === 'ex' ? restEx() : restSet())}, modifier</button>` : ''}
+  </div>`;
 }
 function setOk(id, k) {
   const e = entryById(id), st = e.log[k];
@@ -674,6 +738,7 @@ function drawExec() {
         <div class="s">${e.log.length} × ${tgt || '?'} rép., ${next >= 0 ? `<span class="w" onclick="exWeight('${e.id}')">${num(todoW) ? fmt(num(todoW)) + ' kg' : 'sans charge'} ✎</span>` : (num(todoW) ? fmt(num(todoW)) + ' kg' : 'sans charge')}</div></div>
       <button id="exTimer" class="extimer" onclick="exTimerTap()" aria-label="Minuteur de repos"></button>
     </div>
+    ${T.state !== 'idle' ? restPanel() : ''}
     <div class="extiles">${tiles}<button class="extile add" onclick="addSet('${e.id}');drawExec()">＋ Série</button></div>
     <div style="flex:1;min-height:18px"></div>
     ${nx ? `<p class="muted" style="text-align:center;margin:10px 0 8px">À suivre : ${h(nameOf('movements', nx.movementId, nx.mvName))}</p>` : ''}
@@ -683,11 +748,18 @@ function drawExec() {
   drawExTimer();
 }
 function drawExTimer() {
-  const b = $('#exTimer'); if (!b) return;
-  b.className = 'extimer' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' : '');
-  b.innerHTML = T.state === 'idle' ? `<small>Repos</small>${T.min} min` : T.state === 'ringing' ? '<small>Repos fini</small>Stop' : `<small>${T.state === 'paused' ? 'Pause' : 'Repos'}</small>${mmss(remaining())}`;
+  if (!EXON) return;
+  const p = $('#exRest');
+  if ((T.state === 'idle') !== !p || (p && p.dataset.st !== T.state)) { drawExec(); return; }
+  const b = $('#exTimer');
+  if (b) {
+    b.className = 'extimer' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' + (T.kind === 'ex' ? ' ex' : '') : '');
+    b.innerHTML = T.state === 'idle' ? `<small>Repos</small>${mmss((restSet() || 90) * 1000)}` : T.state === 'ringing' ? '<small>Repos fini</small>Stop' : `<small>${T.state === 'paused' ? 'Pause' : T.kind === 'ex' ? 'Transition' : 'Repos'}</small>${mmss(remaining())}`;
+  }
+  const t = $('#exRestT'); if (t) t.textContent = T.state === 'ringing' ? '0:00' : mmss(remaining());
+  const bar = $('#exRestBar'); if (bar && T.total) bar.style.width = Math.max(0, 100 * remaining() / T.total) + '%';
 }
-function exTimerTap() { if (T.state === 'idle') startTimer(); else resetTimer(); }
+function exTimerTap() { if (T.state === 'idle') startRest('set', true); else if (T.state === 'running') pauseTimer(); else if (T.state === 'paused') resumeTimer(); else resetTimer(); }
 function exGo(k) { const list = exList(); if (!list[k]) return; db.exec.cur = list[k].id; save(); drawExec(); $('#exec').scrollTop = 0; }
 function exTap(id, k) {
   const e = entryById(id), st = e.log[k];
@@ -952,9 +1024,10 @@ function vSettings(m) {
   m.innerHTML = listEditor('exercises', 'Exercices', 'L’icône de la partie du corps est choisie automatiquement d’après le nom. Vous pouvez la changer avec le menu sous chaque exercice.') +
     listEditor('movements', 'Mouvements', '', `<button class="btn pri full" style="margin-bottom:10px" onclick="openLibView()">Parcourir la bibliothèque (${LIB.length} mouvements)</button>`) +
     listEditor('fields', 'Rubriques personnalisées', 'Champs supplémentaires ajoutés au formulaire de saisie, par exemple « Temps de repos », « Ressenti » ou « Commentaire ». Les rubriques de type nombre apparaissent aussi dans les statistiques.') +
-    `<div class="card"><h2>Repos entre les séries</h2>
-      <p class="muted" style="margin:-6px 0 10px">Pendant la séance, lance le minuteur dès qu’une série est validée, avec la durée réglée dans le minuteur (${T.min} min).</p>
-      <button class="pill${db.autoRest !== false ? ' on' : ''}" onclick="db.autoRest=!(db.autoRest!==false);save();render()">${db.autoRest !== false ? 'Repos automatique activé' : 'Repos automatique désactivé'}</button></div>
+    `<div class="card"><h2>Temps de repos</h2>
+      <p class="muted" style="margin:-6px 0 8px">Lancés automatiquement pendant la séance. Choisissez « Aucun » pour ne pas lancer de minuteur.</p>
+      <div class="item"><div class="grow"><div class="t">Entre les séries</div><div class="s">Même exercice, même matériel</div></div><button class="btn sm" onclick="restDefaults('set')">${fmtRest(restSet())}</button></div>
+      <div class="item"><div class="grow"><div class="t">Entre les exercices</div><div class="s">Mise en place du matériel comprise</div></div><button class="btn sm" onclick="restDefaults('ex')">${fmtRest(restEx())}</button></div></div>
     <div class="card"><h2>Sauvegarde</h2>
       <p class="muted" style="margin-top:-6px">Vos données restent sur cet iPhone. Exportez-les régulièrement dans Fichiers ou iCloud Drive pour ne rien perdre.</p>
       <button class="btn full" onclick="exportJSON()">Exporter mes données</button>
@@ -1202,13 +1275,13 @@ function drawTimer() {
   updTimer();
 }
 function run() { clearInterval(T.iv); T.iv = setInterval(tick, 250); T.state = 'running'; wakeOn(); drawTimer(); }
-function startTimer() { unlockAudio(); T.total = T.min * 60000; T.end = Date.now() + T.total; run(); }
+function startTimer() { unlockAudio(); T.kind = ''; T.total = T.min * 60000; T.end = Date.now() + T.total; run(); }
 function pauseTimer() { T.left = T.end - Date.now(); T.state = 'paused'; clearInterval(T.iv); wakeOff(); drawTimer(); }
 function resumeTimer() { unlockAudio(); T.end = Date.now() + T.left; run(); }
 function addMinute() { if (T.state === 'running') T.end += 60000; else T.left += 60000; T.total += 60000; drawTimer(); }
 function resetTimer() { clearInterval(T.iv); stopRing(); T.state = 'idle'; T.left = 0; wakeOff(); drawTimer(); }
 function tick() { if (T.state !== 'running') return; if (T.end - Date.now() <= 0) finishTimer(); else updTimer(); }
-function finishTimer() { clearInterval(T.iv); T.state = 'ringing'; T.left = 0; wakeOff(); ring(); openTimer(); }
+function finishTimer() { clearInterval(T.iv); T.state = 'ringing'; T.left = 0; wakeOff(); ring(); if (EXON) drawExec(); else openTimer(); }
 /* Son : Web Audio, débloqué par le toucher sur « Démarrer » (obligatoire sur iPhone) */
 function unlockAudio() {
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
