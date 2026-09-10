@@ -233,7 +233,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '13';
+const APP_VERSION = '14';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -1256,7 +1256,11 @@ if (location.protocol === 'https:') {
 /* ---------- Démarrage ---------- */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => { editProg = null; libView = false; show(b.dataset.t); });
 render();
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(r => r.update()).catch(() => {});
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!swReloaded && !EXON) { swReloaded = true; location.reload(); } });
+}
 </script>
 </body>
 </html>
