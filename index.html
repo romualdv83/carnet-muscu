@@ -131,6 +131,33 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .setrow .w{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .repgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 14px}
 .repgrid .btn{padding:0;min-height:48px;font:700 18px var(--num)}
+#exec{position:fixed;inset:0;z-index:25;background:var(--bg);display:none;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+#exec.open{display:flex}
+.extop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.extop b{font:700 17px var(--num)}
+#exClock{font:600 15px var(--num);font-variant-numeric:tabular-nums;min-width:60px;text-align:right;color:var(--mut)}
+.exdots{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin:6px 0 18px}
+.exdots i{width:12px;height:12px;border-radius:50%;background:var(--line);cursor:pointer}
+.exdots i.done{background:var(--green)}
+.exdots i.on{background:var(--yellow);transform:scale(1.3)}
+.exhead{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.exthumb{width:78px;height:78px;border-radius:12px;object-fit:cover;background:var(--field);flex:none;cursor:pointer}
+.exname{font:700 22px/1.15 var(--num)}
+.exhead .w{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.extimer{width:86px;height:86px;border-radius:50%;border:3px solid var(--blue);background:var(--field);color:var(--txt);font:700 21px/1.1 var(--num);flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;padding:0}
+.extimer small{font:500 12px -apple-system,system-ui,sans-serif;color:var(--mut)}
+.extimer.run{border-color:var(--yellow);background:rgba(245,197,66,.14)}
+.extimer.ring{border-color:var(--red);background:var(--red);color:#fff;animation:pulse 1s infinite}
+.extimer.ring small{color:#fff}
+.extiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.extile{min-height:92px;border-radius:16px;border:2px solid var(--line);background:var(--field);color:var(--txt);font:700 28px/1.1 var(--num);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px}
+.extile small{font:500 13px -apple-system,system-ui,sans-serif;color:var(--mut)}
+.extile.next{border-color:var(--blue);background:rgba(62,142,247,.14)}
+.extile.ok{border-color:var(--green);background:rgba(63,185,113,.18);color:var(--green)}
+.extile.part{border-color:var(--yellow);background:rgba(245,197,66,.18);color:var(--yellow)}
+.extile.skip{opacity:.55;text-decoration:line-through}
+.extile.add{border-style:dashed;font-size:17px;color:var(--mut)}
+.exbig{min-height:62px;font-size:18px}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -148,7 +175,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .bar i{display:block;height:100%;width:100%;background:var(--yellow)}
 .ringtxt{color:var(--red);animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.55}}
-@media (prefers-reduced-motion:reduce){.toast{transition:none}.tbtn.ring,.ringtxt{animation:none}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}.tbtn.ring,.ringtxt,.extimer.ring{animation:none}}
 </style>
 </head>
 <body>
@@ -165,6 +192,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 <div class="toast" id="toast"></div>
 <div class="modal" id="smodal" onclick="if(event.target===this)closeFinish()"><div class="sheet" id="ssheet" role="dialog" aria-label="Terminer la séance"></div></div>
 <div class="modal" id="pmodal"><div class="sheet" id="psheet" role="dialog" aria-label="Choisir un mouvement"></div></div>
+<div id="exec" role="dialog" aria-label="Séance en cours"></div>
 <div class="modal" id="rmodal" onclick="if(event.target===this)closeRep()"><div class="sheet" id="rsheet" role="dialog" aria-label="Répétitions réussies"></div></div>
 <div class="modal" id="lmodal" onclick="if(event.target===this)closeLib()"><div class="sheet" id="lsheet" role="dialog" aria-label="Mouvement"></div></div>
 <div class="modal" id="tmodal" onclick="if(event.target===this)closeTimer()"><div class="sheet" id="tsheet" role="dialog" aria-label="Minuteur"></div></div>
@@ -314,7 +342,7 @@ function render() {
 }
 
 /* ---------- Séance ---------- */
-function entryRow(e) {
+function entryRow(e, reorder) {
   const extra = db.fields.filter(f => e.custom && e.custom[f.id] !== undefined && e.custom[f.id] !== '')
     .map(f => `${h(f.name)} : ${h(e.custom[f.id])}`).join(', ');
   let w = num(e.weight) ? `, ${fmt(num(e.weight))} kg` : '', detail = `, ${num(e.sets)} × ${num(e.reps)} rép.`, chips = '';
@@ -329,12 +357,13 @@ function entryRow(e) {
       <div class="t">${h(nameOf('movements', e.movementId, e.mvName))}</div>
       <div class="s">${e.time ? `<span style="color:var(--txt);margin-right:6px">${h(e.time)}</span>` : ''}${h(nameOf('exercises', e.exerciseId, e.exName))}${detail}${w}${extra ? '<br>' + extra : ''}</div>${chips}
     </div>
+    ${reorder ? `<button class="icon" aria-label="Monter dans l’ordre" onclick="moveEntry('${e.id}')">↑</button>` : ''}
     <button class="icon" aria-label="Modifier" onclick="editEntry('${e.id}')">✎</button>
     <button class="icon" aria-label="Supprimer" onclick="delEntry('${e.id}')">🗑</button></div>`;
 }
 function vSeance(m) {
   const f = F;
-  const day = db.entries.filter(e => e.date === f.date).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const day = db.entries.filter(e => e.date === f.date).sort(byOrd);
   const prog = db.programs.find(p => p.id === curProg);
   const isToday = f.date === todayStr();
   const curMvLib = (db.movements.find(x => x.id === f.movementId) || {}).lib || '';
@@ -344,6 +373,7 @@ function vSeance(m) {
     progHTML = `<div class="card"><h2>Programme suivi</h2>
       <select onchange="curProg=this.value;render()"><option value="">Séance libre</option>
       ${db.programs.map(p => `<option value="${p.id}"${p.id === curProg ? ' selected' : ''}>${h(p.name)}</option>`).join('')}</select>
+      ${prog && prog.items.length ? `<button class="btn full gap" onclick="loadProg()">Ajouter tout le programme à la séance</button>` : ''}
       ${prog ? `<div style="margin-top:10px">${prog.items.map((it, i) => {
         const done = day.some(e => e.programId === prog.id && e.movementId === it.movementId && e.exerciseId === it.exerciseId);
         return `<div class="item">${tile(zoneFor(it.exerciseId, it.movementId))}<div class="grow"><div class="t">${h(nameOf('movements', it.movementId))}${done ? '<span class="check">✓</span>' : ''}</div>
@@ -353,9 +383,8 @@ function vSeance(m) {
     </div>`;
   }
 
-  const live = day.filter(e => e.log && e.log.some(st => st.s === 'todo'));
-  m.innerHTML = live.map(liveCard).join('') + progHTML + `
-  <div class="card" id="formcard"><h2>${editId ? 'Modifier la saisie' : live.length ? 'Exercice suivant' : 'Nouvel exercice'}</h2>
+  m.innerHTML = execCard(f.date, day) + progHTML + `
+  <div class="card" id="formcard"><h2>${editId ? 'Modifier l’exercice' : 'Ajouter un exercice à la séance'}</h2>
     <div class="row">
       <div><label>Date</label><input type="date" value="${f.date}" onchange="F.date=this.value||todayStr();render()"></div>
       <div><label>Heure</label><input type="time" value="${f.time}" oninput="F.time=this.value"></div>
@@ -375,11 +404,11 @@ function vSeance(m) {
     </div>
     ${db.fields.map(fd => `<div class="field"><label>${h(fd.name)}</label>
       <input ${fd.type === 'number' ? 'inputmode="decimal"' : ''} value="${h(f.custom[fd.id] ?? '')}" oninput="F.custom['${fd.id}']=this.value"></div>`).join('')}
-    <button class="btn pri full" onclick="saveEntry()">${editId ? 'Enregistrer les modifications' : 'Commencer l’exercice'}</button>
+    <button class="btn pri full" onclick="saveEntry()">${editId ? 'Enregistrer les modifications' : 'Ajouter à la séance'}</button>
     ${editId ? '<button class="btn ghost full gap" onclick="cancelEdit()">Annuler</button>' : ''}
   </div>
   <div class="card"><h2>${isToday ? 'Totaux du jour' : 'Totaux du ' + h(frShort(f.date))}</h2>${statBoxes(totals(day))}${perExerciseTable(day)}</div>
-  <div class="card"><h2>Saisies${isToday ? ' du jour' : ''} (${day.length})</h2>${day.map(entryRow).join('') || '<div class="empty">Rien d’enregistré à cette date. Remplissez le formulaire ci-dessus.</div>'}</div>
+  <div class="card"><h2>Exercices de la séance (${day.length})</h2>${day.map(e => entryRow(e, true)).join('') || '<div class="empty">Aucun exercice prévu à cette date. Ajoutez-en avec le formulaire ci-dessus.</div>'}</div>
   ${bilanCard(f.date, day.length)}`;
 }
 function quickAdd(list, field) {
@@ -404,6 +433,7 @@ function saveEntry() {
   };
   const old = wasEdit ? db.entries.find(x => x.id === editId) : null;
   const n = Math.max(1, Math.round(num(f.sets)) || 1), tr = Math.round(num(f.reps));
+  e.ord = old ? old.ord : Date.now();
   if (!old) e.log = Array.from({length: n}, () => ({t: tr, w: f.weight, s: 'todo', d: null}));
   else if (old.log) {
     e.log = old.log.map(st => st.s === 'todo' ? Object.assign({}, st, {t: tr, w: f.weight}) : st);
@@ -417,8 +447,8 @@ function saveEntry() {
   editId = null;
   const keep = {date: e.date, exerciseId: e.exerciseId, movementId: e.movementId};
   F = Object.assign(newForm(), keep);
-  render(); if (!wasEdit) window.scrollTo(0, 0);
-  toast(wasEdit ? 'Modifications enregistrées' : 'C’est parti : validez chaque série');
+  render();
+  toast(wasEdit ? 'Modifications enregistrées' : 'Ajouté à la séance');
 }
 function editEntry(id) {
   const e = db.entries.find(x => x.id === id); if (!e) return;
@@ -485,6 +515,7 @@ function saveFinish() {
   const data = {date: S.date, rating: S.rating, comment: (S.comment || '').trim(), time: ses ? ses.time : nowTime(), programId: ses ? ses.programId : (curProg || null)};
   if (ses) Object.assign(ses, data); else db.sessions.push(Object.assign({id: uid()}, data));
   db.entries.filter(e => e.date === S.date && e.log).forEach(e => e.log.forEach(st => { if (st.s === 'todo') st.s = 'skip'; }));
+  if (db.exec && db.exec.date === S.date) { delete db.exec; if (EXON) closeExec(); }
   save(); closeFinish();
   if (wasNew) curProg = '';
   render(); toast(wasNew ? 'Séance terminée, bravo !' : 'Bilan modifié');
@@ -520,9 +551,9 @@ function setRow(e, st, k, isNext) {
 }
 function afterSet(e) {
   save();
+  if (db.autoRest !== false) { resetTimer(); startTimer(); }
   if (!e.log.some(st => st.s === 'todo')) toast('Exercice terminé, bravo !');
-  else if (db.autoRest) { resetTimer(); startTimer(); }
-  render();
+  render(); drawExec();
 }
 function setOk(id, k) {
   const e = entryById(id), st = e.log[k];
@@ -566,6 +597,113 @@ function endLive(id) {
   const e = entryById(id); e.log.forEach(st => { if (st.s === 'todo') st.s = 'skip'; }); save(); render();
 }
 
+/* ---------- Ordre des exercices et écran d'exécution de la séance ---------- */
+const ordOf = e => e.ord ?? Date.parse(e.date + 'T' + (e.time || '00:00'));
+const byOrd = (a, b) => ordOf(a) - ordOf(b);
+let EXON = false, EXCLK = null;
+function moveEntry(id) {
+  const e = entryById(id), list = db.entries.filter(x => x.date === e.date).sort(byOrd), i = list.indexOf(e);
+  if (i <= 0) return;
+  list.forEach(x => { x.ord = ordOf(x); });
+  const p = list[i - 1], t = p.ord; p.ord = e.ord; e.ord = t;
+  if (p.ord === e.ord) e.ord -= 1;
+  save(); render();
+}
+function loadProg() {
+  const p = db.programs.find(x => x.id === curProg); if (!p || !p.items.length) return;
+  const base = Date.now();
+  p.items.forEach((it, k) => {
+    const n = Math.max(1, Math.round(num(it.sets)) || 1), tr = Math.round(num(it.reps));
+    db.entries.push({id: uid(), date: F.date, time: nowTime(), ord: base + k, exerciseId: it.exerciseId, movementId: it.movementId,
+      exName: findName('exercises', it.exerciseId), mvName: findName('movements', it.movementId), reps: it.reps, sets: n, weight: it.weight,
+      custom: {}, programId: p.id, log: Array.from({length: n}, () => ({t: tr, w: it.weight, s: 'todo', d: null}))});
+  });
+  save(); render(); toast(`${p.items.length} exercices ajoutés à la séance`);
+}
+function execCard(d, day) {
+  const planned = day.filter(e => e.log), todo = planned.reduce((n, e) => n + e.log.filter(st => st.s === 'todo').length, 0);
+  if (!todo) return '';
+  const resume = db.exec && db.exec.date === d;
+  return `<div class="card live"><h2>${resume ? 'Séance en cours' : 'Séance prête'}</h2>
+    <p class="muted" style="margin:-6px 0 12px">${planned.length} exercice${planned.length > 1 ? 's' : ''}, ${todo} série${todo > 1 ? 's' : ''} à faire. L’ordre se règle avec ↑ dans la liste des exercices.</p>
+    <button class="btn pri full exbig" onclick="startExec()">${resume ? '▶ Reprendre la séance' : '▶ Démarrer la séance'}</button></div>`;
+}
+const exList = () => db.entries.filter(e => db.exec && e.date === db.exec.date && e.log).sort(byOrd);
+const dur = ms => { const s = Math.max(0, Math.floor(ms / 1000)), hh = Math.floor(s / 3600), mm = Math.floor(s / 60) % 60; return (hh ? hh + ':' + pad(mm) : mm) + ':' + pad(s % 60); };
+function startExec() {
+  const list = db.entries.filter(e => e.date === F.date && e.log).sort(byOrd); if (!list.length) return;
+  if (!db.exec || db.exec.date !== F.date) db.exec = {date: F.date, start: Date.now(), cur: (list.find(e => e.log.some(st => st.s === 'todo')) || list[0]).id};
+  save(); EXON = true;
+  $('#exec').classList.add('open'); document.body.style.overflow = 'hidden';
+  wakeOn(); clearInterval(EXCLK);
+  EXCLK = setInterval(() => { const c = $('#exClock'); if (c && db.exec) c.textContent = dur(Date.now() - db.exec.start); }, 1000);
+  drawExec();
+}
+function closeExec() {
+  EXON = false; $('#exec').classList.remove('open'); document.body.style.overflow = '';
+  clearInterval(EXCLK); wakeOff(); render();
+}
+function drawExec() {
+  if (!EXON || !db.exec) return;
+  const list = exList(); if (!list.length) { closeExec(); return; }
+  let i = list.findIndex(e => e.id === db.exec.cur); if (i < 0) { i = 0; db.exec.cur = list[0].id; }
+  const e = list[i], n = list.length, next = e.log.findIndex(st => st.s === 'todo'), nx = list[i + 1];
+  const mv = db.movements.find(m => m.id === e.movementId), lib = mv && mv.lib && !mv.lib.startsWith('fr_') ? mv.lib : '';
+  const z = zoneFor(e.exerciseId, e.movementId, e.exName, e.mvName);
+  const todoW = (e.log.find(st => st.s === 'todo') || e.log[e.log.length - 1] || {}).w;
+  const tgt = (e.log[0] || {}).t;
+  const tiles = e.log.map((st, k) => {
+    const cls = st.s === 'todo' ? (k === next ? 'next' : '') : st.s;
+    const big = st.s === 'ok' ? '✓ ' + st.d : st.s === 'part' ? st.d + '/' + (st.t || '?') : st.s === 'skip' ? 'non faite' : (st.t || '?');
+    const sub = st.s === 'todo' ? 'rép.' + (num(st.w) ? ', ' + fmt(num(st.w)) + ' kg' : '') : (num(st.w) ? fmt(num(st.w)) + ' kg' : '');
+    return `<button class="extile ${cls}" onclick="exTap('${e.id}',${k})"><small>Série ${k + 1}</small>${big}${sub ? `<small>${sub}</small>` : ''}</button>`;
+  }).join('');
+  $('#exec').innerHTML = `
+    <div class="extop"><button class="icon" aria-label="Quitter la séance (reprise possible)" onclick="closeExec()">✕</button>
+      <b>Exercice ${i + 1} sur ${n}</b><span id="exClock">${dur(Date.now() - db.exec.start)}</span></div>
+    <div class="exdots">${list.map((x, k) => `<i class="${k === i ? 'on' : x.log.every(st => st.s !== 'todo') ? 'done' : ''}" onclick="exGo(${k})" aria-label="Exercice ${k + 1}"></i>`).join('')}</div>
+    <div class="exhead">
+      ${lib ? `<img class="exthumb" src="${IMG}${lib}/0.jpg" alt="Photo du mouvement" onclick="libInfo('${lib}')" onerror="this.style.display='none'">` : tile(z, 'lg')}
+      <div class="grow"><div class="exname">${h(nameOf('movements', e.movementId, e.mvName))}</div>
+        <div class="s">${h(nameOf('exercises', e.exerciseId, e.exName))}</div>
+        <div class="s">${e.log.length} × ${tgt || '?'} rép., ${next >= 0 ? `<span class="w" onclick="exWeight('${e.id}')">${num(todoW) ? fmt(num(todoW)) + ' kg' : 'sans charge'} ✎</span>` : (num(todoW) ? fmt(num(todoW)) + ' kg' : 'sans charge')}</div></div>
+      <button id="exTimer" class="extimer" onclick="exTimerTap()" aria-label="Minuteur de repos"></button>
+    </div>
+    <div class="extiles">${tiles}<button class="extile add" onclick="addSet('${e.id}');drawExec()">＋ Série</button></div>
+    <div style="flex:1;min-height:18px"></div>
+    ${nx ? `<p class="muted" style="text-align:center;margin:10px 0 8px">À suivre : ${h(nameOf('movements', nx.movementId, nx.mvName))}</p>` : ''}
+    ${nx ? `<button class="btn ${next < 0 ? 'pri ' : ''}full exbig" onclick="exGo(${i + 1})">Exercice suivant →</button>`
+         : `<button class="btn pri full exbig" onclick="exFinish()">Terminer la séance</button>`}
+    ${i > 0 ? `<button class="btn ghost full gap" onclick="exGo(${i - 1})">‹ Exercice précédent</button>` : ''}`;
+  drawExTimer();
+}
+function drawExTimer() {
+  const b = $('#exTimer'); if (!b) return;
+  b.className = 'extimer' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' : '');
+  b.innerHTML = T.state === 'idle' ? `<small>Repos</small>${T.min} min` : T.state === 'ringing' ? '<small>Repos fini</small>Stop' : `<small>${T.state === 'paused' ? 'Pause' : 'Repos'}</small>${mmss(remaining())}`;
+}
+function exTimerTap() { if (T.state === 'idle') startTimer(); else resetTimer(); }
+function exGo(k) { const list = exList(); if (!list[k]) return; db.exec.cur = list[k].id; save(); drawExec(); $('#exec').scrollTop = 0; }
+function exTap(id, k) {
+  const e = entryById(id), st = e.log[k];
+  if (st.s === 'todo' && st.t) { st.s = 'ok'; st.d = st.t; afterSet(e); return; }
+  exAdjust(id, k);
+}
+function exAdjust(id, k) {
+  const e = entryById(id), st = e.log[k], t = num(st.t);
+  $('#rsheet').innerHTML = `<h2>Série ${k + 1}</h2>
+    <p class="muted" style="margin:2px 0 12px">${t ? 'Objectif : ' + t + ' répétitions' : 'Indiquez le nombre de répétitions réalisées'}</p>
+    ${t ? `<button class="btn pri full exbig" onclick="setReps('${id}',${k},${t})">✓ Réussie, ${t} rép.</button>
+      <p class="muted" style="margin:14px 0 0">Ou répétitions réussies :</p>
+      <div class="repgrid">${Array.from({length: Math.min(t, 40)}, (_, j) => `<button class="btn" onclick="setReps('${id}',${k},${j})">${j}</button>`).join('')}</div>`
+      : `<input id="repin" inputmode="numeric" placeholder="Nombre de répétitions" style="margin:0 0 12px"><button class="btn pri full" onclick="setReps('${id}',${k},num($('#repin').value))">Valider</button>`}
+    ${st.s !== 'todo' ? `<button class="btn full gap" onclick="setUndo('${id}',${k});closeRep();drawExec()">Remettre à faire</button>` : ''}
+    <button class="btn ghost full gap" onclick="closeRep()">Annuler</button>`;
+  $('#rmodal').classList.add('open');
+}
+function exWeight(id) { const e = entryById(id), k = e.log.findIndex(st => st.s === 'todo'); if (k < 0) return; setWeight(id, k); drawExec(); }
+function exFinish() { F.date = db.exec.date; openFinish(); }
+
 /* ---------- Historique ---------- */
 function vHisto(m) {
   const days = [...new Set(db.entries.map(e => e.date))].sort().reverse();
@@ -579,7 +717,7 @@ function vHisto(m) {
       const ses = sessionOf(d);
       return `<details class="card"><summary><div class="t" style="text-transform:capitalize">${h(frDate(d))}${ses ? ` <span class="note" style="background:${rateColor(ses.rating)}">${ses.rating}/10</span>` : ''}</div>
         <div class="s">${t.ex} exercice${t.ex > 1 ? 's' : ''}, ${fmt(t.sets)} séries, ${fmt(t.reps)} rép., ${short(t.ton)} kg</div></summary>
-        <div style="margin-top:10px">${es.map(entryRow).join('')}</div>
+        <div style="margin-top:10px">${es.map(e => entryRow(e)).join('')}</div>
         ${ses && ses.comment ? `<p class="muted" style="margin:8px 0 0;white-space:pre-wrap">« ${h(ses.comment)} »</p>` : ''}
         <button class="btn sm gap" onclick="gotoDay('${d}')">Ouvrir cette journée</button></details>`;
     }).join('') || '<div class="empty">Aucun entraînement enregistré pour l’instant.</div>'}`;
@@ -803,8 +941,8 @@ function vSettings(m) {
     listEditor('movements', 'Mouvements', '', `<button class="btn pri full" style="margin-bottom:10px" onclick="openLibView()">Parcourir la bibliothèque (${LIB.length} mouvements)</button>`) +
     listEditor('fields', 'Rubriques personnalisées', 'Champs supplémentaires ajoutés au formulaire de saisie, par exemple « Temps de repos », « Ressenti » ou « Commentaire ». Les rubriques de type nombre apparaissent aussi dans les statistiques.') +
     `<div class="card"><h2>Repos entre les séries</h2>
-      <p class="muted" style="margin:-6px 0 10px">Lance le minuteur dès qu’une série est validée, avec la durée réglée dans le minuteur (${T.min} min).</p>
-      <button class="pill${db.autoRest ? ' on' : ''}" onclick="db.autoRest=!db.autoRest;save();render()">${db.autoRest ? 'Repos automatique activé' : 'Repos automatique désactivé'}</button></div>
+      <p class="muted" style="margin:-6px 0 10px">Pendant la séance, lance le minuteur dès qu’une série est validée, avec la durée réglée dans le minuteur (${T.min} min).</p>
+      <button class="pill${db.autoRest !== false ? ' on' : ''}" onclick="db.autoRest=!(db.autoRest!==false);save();render()">${db.autoRest !== false ? 'Repos automatique activé' : 'Repos automatique désactivé'}</button></div>
     <div class="card"><h2>Sauvegarde</h2>
       <p class="muted" style="margin-top:-6px">Vos données restent sur cet iPhone. Exportez-les régulièrement dans Fichiers ou iCloud Drive pour ne rien perdre.</p>
       <button class="btn full" onclick="exportJSON()">Exporter mes données</button>
@@ -1018,6 +1156,7 @@ function setMin(v) { T.min = Math.min(99, Math.max(1, v)); db.timerMin = T.min; 
 function pill() {
   $('#tbtn').className = 'tbtn' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' : '');
   $('#tpill').textContent = T.state === 'idle' ? '' : T.state === 'ringing' ? '0:00' : mmss(remaining());
+  drawExTimer();
 }
 function updTimer() {
   const rem = remaining(), b = $('#tbig'), bar = $('#tbar');
@@ -1079,7 +1218,7 @@ function ring() {
 }
 function stopRing() { if (T.master) { try { T.master.disconnect(); } catch (e) {} T.master = null; } }
 async function wakeOn() { try { if ('wakeLock' in navigator && !T.wake) { T.wake = await navigator.wakeLock.request('screen'); T.wake.addEventListener('release', () => T.wake = null); } } catch (e) {} }
-function wakeOff() { if (T.wake) { T.wake.release().catch(() => {}); T.wake = null; } }
+function wakeOff() { if (EXON) return; if (T.wake) { T.wake.release().catch(() => {}); T.wake = null; } }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   if (T.ac && T.ac.state === 'suspended') T.ac.resume();
