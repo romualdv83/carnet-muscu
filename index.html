@@ -233,7 +233,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '14';
+const APP_VERSION = '15';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -616,14 +616,14 @@ function moveEntry(id) {
 }
 function loadProg() {
   const p = db.programs.find(x => x.id === curProg); if (!p || !p.items.length) return;
-  const base = Date.now();
-  p.items.forEach((it, k) => {
+  const base = Date.now(), items = p.items.filter(it => it.movementId || it.exerciseId);
+  items.forEach((it, k) => {
     const n = Math.max(1, Math.round(num(it.sets)) || 1), tr = Math.round(num(it.reps));
     db.entries.push({id: uid(), date: F.date, time: nowTime(), ord: base + k, exerciseId: it.exerciseId, movementId: it.movementId,
       exName: findName('exercises', it.exerciseId), mvName: findName('movements', it.movementId), reps: it.reps, sets: n, weight: it.weight,
       custom: {}, programId: p.id, log: Array.from({length: n}, () => ({t: tr, w: it.weight, s: 'todo', d: null}))});
   });
-  save(); render(); toast(`${p.items.length} exercices ajoutés à la séance`);
+  save(); render(); toast(`${items.length} exercice${items.length > 1 ? 's' : ''} ajouté${items.length > 1 ? 's' : ''} à la séance`);
 }
 function execCard(d, day) {
   const planned = day.filter(e => e.log), todo = planned.reduce((n, e) => n + e.log.filter(st => st.s === 'todo').length, 0);
@@ -847,7 +847,7 @@ function vProg(m) {
       ${p.items.map(it => `<div class="item">${tile(zoneFor(it.exerciseId, it.movementId))}<div class="grow"><div class="t">${h(nameOf('movements', it.movementId))}</div>
         <div class="s">${h(nameOf('exercises', it.exerciseId))}, ${h(it.sets || '?')} × ${h(it.reps || '?')} rép.${it.weight ? ', ' + h(it.weight) + ' kg' : ''}</div></div></div>`).join('')}
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn sm pri" onclick="startProg('${p.id}')">Démarrer</button>
+        <button class="btn sm pri" onclick="startProg('${p.id}')">▶ Démarrer la séance</button>
         <button class="btn sm" onclick="exportICS('${p.id}')">Ajouter les rappels</button>
         <button class="btn sm" onclick="editP('${p.id}')">Modifier</button>
         <button class="btn sm danger" onclick="delProg('${p.id}')">Supprimer</button>
@@ -899,7 +899,14 @@ function delProg(id) {
   if (!confirm('Supprimer ce programme ? Les séances déjà enregistrées sont conservées.')) return;
   db.programs = db.programs.filter(p => p.id !== id); if (curProg === id) curProg = ''; save(); render(); toast('Programme supprimé');
 }
-function startProg(id) { curProg = id; editId = null; F = newForm(); show('seance'); }
+function startProg(id) {
+  const p = db.programs.find(x => x.id === id); if (!p) return;
+  if (!p.items.some(it => it.movementId || it.exerciseId)) { toast('Ajoutez d’abord des mouvements à ce programme', true); editP(id); return; }
+  curProg = id; editId = null; F = newForm();
+  const loaded = db.entries.some(e => e.date === F.date && e.programId === id && e.log);
+  if (!loaded) loadProg();
+  show('seance'); startExec();
+}
 function exportICS(id) {
   const p = db.programs.find(x => x.id === id);
   if (!p.days.length) { toast('Choisissez d’abord les jours du programme', true); return; }
