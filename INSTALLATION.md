@@ -33,13 +33,14 @@ iOS propose de l'ajouter au Calendrier. Les rappels répétés chaque semaine
 Si rien ne se passe depuis l'app installée, faites la même manipulation depuis Safari.
 Après avoir modifié les jours d'un programme, supprimez l'ancien événement du Calendrier et réimportez.
 
-## 4. Minuteur
+## 4. Temps de repos
 
-Bouton chronomètre en haut à droite, sur tous les écrans. Réglez les minutes, touchez « Démarrer » :
-une sonnerie retentit à la fin. Vous pouvez fermer la fenêtre, le décompte reste affiché dans le bouton.
-Montez le volume de l'iPhone. Gardez l'application ouverte pendant le décompte : si vous verrouillez l'écran
-ou passez dans une autre app, iOS met l'application en pause et la sonnerie ne retentit qu'à votre retour.
-Sur les versions récentes d'iOS, l'écran reste allumé automatiquement pendant le décompte.
+Pendant la séance (écran « Démarrer la séance »), un repos se lance après chaque série validée,
+et un repos plus long après la dernière série d'un exercice, pour la mise en place du matériel.
+Pause, −30 s, +30 s et Arrêter sont proposés pendant le repos. Les durées se règlent dans
+Réglages, rubrique « Temps de repos ». Montez le volume de l'iPhone et gardez l'application ouverte :
+si vous verrouillez l'écran, iOS met l'application en pause et la sonnerie ne retentit qu'à votre retour.
+L'écran reste allumé automatiquement pendant la séance sur les versions récentes d'iOS.
 
 ## 5. Sauvegarde
 

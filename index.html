@@ -175,6 +175,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .exrest-b{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .exrest-b .btn{padding:0 4px;min-height:52px;font-size:15px}
 .exrest-def{background:none;border:0;color:var(--blue);font-size:14px;margin-top:10px;padding:4px 0;text-decoration:underline;text-underline-offset:2px;font-family:inherit}
+.tbtn[hidden]{display:none}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -197,7 +198,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 </head>
 <body>
 <header><div class="hd"><div><h1 id="title">Séance</h1><p id="subtitle"></p></div>
-  <button id="tbtn" class="tbtn" aria-label="Minuteur" onclick="openTimer()"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M18.5 6.5l1.5-1.5"/></svg><span id="tpill"></span></button></div></header>
+  <button id="tbtn" class="tbtn" aria-label="Repos en cours" onclick="openTimer()" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M18.5 6.5l1.5-1.5"/></svg><span id="tpill"></span></button></div></header>
 <main id="main"></main>
 <nav>
   <button data-t="seance" class="on"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg>Séance</button>
@@ -247,7 +248,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '16';
+const APP_VERSION = '17';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -1243,6 +1244,7 @@ function closeTimer() { if (T.state === 'ringing') resetTimer(); $('#tmodal').cl
 function setMin(v) { T.min = Math.min(99, Math.max(1, v)); db.timerMin = T.min; save(); drawTimer(); }
 function pill() {
   $('#tbtn').className = 'tbtn' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' : '');
+  $('#tbtn').hidden = T.state === 'idle';
   $('#tpill').textContent = T.state === 'idle' ? '' : T.state === 'ringing' ? '0:00' : mmss(remaining());
   drawExTimer();
 }
