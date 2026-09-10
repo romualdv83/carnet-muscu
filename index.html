@@ -158,6 +158,9 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .extile.skip{opacity:.55;text-decoration:line-through}
 .extile.add{border-style:dashed;font-size:17px;color:var(--mut)}
 .exbig{min-height:62px;font-size:18px}
+.upd{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 8px);z-index:45;background:var(--blue);color:#fff;border-radius:14px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.upd[hidden]{display:none}
+.upd button{background:#fff;color:#1c1f23;border:0;border-radius:10px;padding:9px 12px;font:700 15px -apple-system,system-ui,sans-serif;flex:none}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -189,6 +192,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
   <button data-t="prog"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>Programmes</button>
   <button data-t="reglages"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Réglages</button>
 </nav>
+<div class="upd" id="upd" hidden>Nouvelle version disponible <button onclick="applyUpdate()">Mettre à jour</button></div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="smodal" onclick="if(event.target===this)closeFinish()"><div class="sheet" id="ssheet" role="dialog" aria-label="Terminer la séance"></div></div>
 <div class="modal" id="pmodal"><div class="sheet" id="psheet" role="dialog" aria-label="Choisir un mouvement"></div></div>
@@ -229,6 +233,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
+const APP_VERSION = '13';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -949,6 +954,9 @@ function vSettings(m) {
       <label class="btn full gap" style="display:flex;align-items:center;justify-content:center;color:var(--txt);font-size:15px;margin-top:8px">Importer une sauvegarde
         <input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this.files[0])"></label>
       <button class="btn full ghost danger gap" onclick="resetAll()">Tout effacer</button></div>
+    <div class="card"><h2>Application</h2>
+      <p class="muted" style="margin:-6px 0 10px">Version ${APP_VERSION}. Les mises à jour arrivent automatiquement à l’ouverture avec une connexion.</p>
+      <button class="btn full" onclick="checkUpdate(true)">Vérifier les mises à jour</button></div>
     <div class="card"><h2>Installer sur l’iPhone</h2>
       <p class="muted" style="margin:0">Dans Safari, touchez le bouton Partager puis « Sur l’écran d’accueil ». L’application s’ouvre ensuite en plein écran et fonctionne sans connexion.</p></div>`;
 }
@@ -1224,6 +1232,26 @@ document.addEventListener('visibilitychange', () => {
   if (T.ac && T.ac.state === 'suspended') T.ac.resume();
   if (T.state === 'running') { wakeOn(); tick(); }
 });
+
+/* ---------- Mises à jour ---------- */
+async function checkUpdate(manual) {
+  try {
+    const r = await fetch('version.txt?t=' + Date.now(), {cache: 'no-store'});
+    const v = r.ok ? (await r.text()).trim() : '';
+    if (!/^\d+$/.test(v)) throw 0;
+    if (v !== APP_VERSION) { $('#upd').hidden = false; if (manual) applyUpdate(); }
+    else if (manual) toast('Vous avez la dernière version (' + APP_VERSION + ')');
+  } catch (e) { if (manual) toast('Vérification impossible sans connexion', true); }
+}
+async function applyUpdate() {
+  try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e) {}
+  try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (e) {}
+  location.reload();
+}
+if (location.protocol === 'https:') {
+  checkUpdate(false);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(false); });
+}
 
 /* ---------- Démarrage ---------- */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => { editProg = null; libView = false; show(b.dataset.t); });
