@@ -325,7 +325,7 @@ function vSeance(m) {
       <select style="flex:1" onchange="F.exerciseId=this.value;if(!mvFits(F.movementId,F.exerciseId))F.movementId='';render()">${opts('exercises', f.exerciseId)}</select>
       <button class="btn" aria-label="Nouvel exercice" onclick="quickAdd('exercises','exerciseId')">＋</button></div></div>
     <div class="field"><label>Mouvement</label><div class="with-add">
-      <select onchange="F.movementId=this.value;autoEx();render()">${mvOpts(f.movementId, f.exerciseId)}</select>
+      <select onchange="F.movementId=pickMv(this.value);autoEx();render()">${mvOpts(f.movementId, f.exerciseId)}</select>
       ${curMvLib ? `<button class="btn" aria-label="Voir les photos du mouvement" onclick="libInfo('${curMvLib}')">?</button>` : ''}
       <button class="btn" aria-label="Nouveau mouvement" onclick="quickAdd('movements','movementId')">＋</button></div></div>
     <div class="row three">
@@ -600,7 +600,7 @@ function progEditor() {
     ${p.items.map((it, i) => `<div style="${i ? 'border-top:1px solid var(--line);padding-top:12px;margin-top:12px' : ''}">
       <div class="row">
         <div><label>Exercice</label><select onchange="const it=editProg.items[${i}];it.exerciseId=this.value;if(!mvFits(it.movementId,it.exerciseId))it.movementId='';render()">${opts('exercises', it.exerciseId)}</select></div>
-        <div><label>Mouvement</label><select onchange="editProg.items[${i}].movementId=this.value">${mvOpts(it.movementId, it.exerciseId)}</select></div>
+        <div><label>Mouvement</label><select onchange="editProg.items[${i}].movementId=pickMv(this.value);render()">${mvOpts(it.movementId, it.exerciseId)}</select></div>
       </div>
       <div class="row three">
         <div><label>Rép.</label><input inputmode="numeric" value="${h(it.reps)}" oninput="editProg.items[${i}].reps=this.value"></div>
@@ -744,8 +744,22 @@ function mvOpts(sel, exId) {
   const o = x => `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`;
   if (!z || z === 'full') return '<option value="">Choisir…</option>' + all.map(o).join('');
   const mine = all.filter(x => mvZone(x) === z || x.id === sel);
-  if (!mine.length) return `<option value="">Aucun mouvement pour ${h(ex.name)} : touchez ＋ ou ouvrez la bibliothèque</option>`;
-  return `<option value="">Choisir (${mine.length})…</option>` + mine.map(o).join('');
+  const lib = LIB.filter(x => x[2] === z && !isAdded(x));
+  const lo = x => `<option value="lib:${x[0]}">${h(x[1])}</option>`;
+  const bw = lib.filter(x => x[3] === 2), gear = lib.filter(x => x[3] !== 2);
+  const n = mine.length + lib.length;
+  if (!n) return `<option value="">Aucun mouvement pour ${h(ex.name)} : touchez ＋ pour en créer un</option>`;
+  return `<option value="">Choisir (${n})…</option>` +
+    (mine.length ? `<optgroup label="Mes mouvements">${mine.map(o).join('')}</optgroup>` : '') +
+    (bw.length ? `<optgroup label="Bibliothèque, poids du corps">${bw.map(lo).join('')}</optgroup>` : '') +
+    (gear.length ? `<optgroup label="Bibliothèque, avec matériel">${gear.map(lo).join('')}</optgroup>` : '');
+}
+function pickMv(v) {
+  if (!v.startsWith('lib:')) return v;
+  const x = LIB.find(y => y[0] === v.slice(4)); if (!x) return '';
+  let m = db.movements.find(y => y.lib === x[0] || plain(y.name) === plain(x[1]));
+  if (!m) { m = libMove(x); db.movements.push(m); save(); }
+  return m.id;
 }
 function mvFits(mvId, exId) {
   const ex = db.exercises.find(x => x.id === exId), z = ex ? zoneOfEx(ex) : '';
