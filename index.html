@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Muscu">
+<meta name="theme-color" content="#1c1f23">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Carnet de muscu</title>
+<style>
+:root{
+  --bg:#1c1f23; --card:#262a30; --field:#30353d; --line:#3a4049;
+  --txt:#eef0f2; --mut:#9aa1ab;
+  /* couleurs des disques olympiques : chaque total a sa couleur */
+  --red:#e5484d; --blue:#3e8ef7; --yellow:#f5c542; --green:#3fb971;
+  --r:12px;
+  --num:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:rgba(28,31,35,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:calc(env(safe-area-inset-top) + 10px) 18px 10px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font:700 26px/1.1 var(--num);letter-spacing:-.01em}
+header p{margin:2px 0 0;color:var(--mut);font-size:13px}
+main{padding:14px 14px calc(96px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(32,36,41,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1;background:none;border:0;color:var(--mut);padding:8px 0 6px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit}
+nav svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--txt)}
+nav button.on svg{stroke:var(--yellow)}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 12px;font:600 17px/1.2 var(--num)}
+label{display:block;font-size:13px;color:var(--mut);margin:0 0 4px}
+input,select{width:100%;background:var(--field);color:var(--txt);border:1px solid transparent;border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;appearance:none;-webkit-appearance:none;min-height:44px}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.field{margin-bottom:10px}
+.row{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px}
+.row.three{grid-template-columns:1fr 1fr 1fr}
+.with-add{display:flex;gap:6px}
+.with-add>:first-child{flex:1}
+.btn{border:0;border-radius:10px;padding:11px 14px;font-size:15px;font-weight:600;background:var(--field);color:var(--txt);font-family:inherit;min-height:44px}
+.btn.pri{background:var(--yellow);color:#1c1f23}
+.btn.full{width:100%}
+.btn.sm{padding:6px 11px;font-size:14px;min-height:36px}
+.btn.ghost{background:none;border:1px solid var(--line)}
+.btn.danger{color:#ff7b80}
+.gap{margin-top:8px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--field);border-radius:10px;padding:10px 12px;border-left:4px solid var(--c)}
+.stat b{display:block;font:700 24px/1.15 var(--num);font-variant-numeric:tabular-nums}
+.stat b small{font-size:14px;font-weight:600;color:var(--mut)}
+.stat span{font-size:13px;color:var(--mut)}
+.item{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:2px}
+.grow{flex:1;min-width:0}
+.t{font-weight:600}
+.s{font-size:14px;color:var(--mut)}
+.icon{background:none;border:0;color:var(--mut);font-size:18px;padding:8px;min-width:40px;min-height:40px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px}
+th{font-weight:500;color:var(--mut)}
+th,td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
+.n{text-align:right;font-variant-numeric:tabular-nums}
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+details[open]>summary .t::after{content:" ▴";color:var(--mut)}
+details:not([open])>summary .t::after{content:" ▾";color:var(--mut)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--field);color:var(--mut);font-weight:700;font-family:var(--num);font-size:15px}
+.chip.on{background:var(--yellow);border-color:var(--yellow);color:#1c1f23}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .h{font-size:12px;color:var(--mut);padding-bottom:2px}
+.cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font:500 15px var(--num);cursor:pointer}
+.cal .done{background:var(--green);color:#10281a;font-weight:700}
+.cal .plan{box-shadow:inset 0 0 0 2px var(--yellow)}
+.cal .today{text-decoration:underline;text-underline-offset:3px}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mut);margin-top:10px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:5px}
+.muted{color:var(--mut);font-size:14px}
+.empty{color:var(--mut);text-align:center;padding:12px 4px;font-size:15px}
+.check{color:var(--green);font-weight:700;padding:0 4px}
+svg.chart{display:block}
+svg.chart text{fill:var(--mut);font:9px -apple-system,system-ui,sans-serif}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,10px);background:var(--green);color:#10281a;padding:10px 18px;border-radius:22px;font-weight:600;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:40;white-space:nowrap}
+.toast.err{background:var(--red);color:#fff}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.bi{width:52px;height:66px;border-radius:12px;background:var(--field);display:flex;align-items:center;justify-content:center;flex:none}
+.bi svg{height:62px;width:41px}
+.bi.sm{width:34px;height:44px;border-radius:8px;display:inline-flex;vertical-align:middle;margin-right:8px}
+.bi.sm svg{height:41px;width:27px}
+.bi.lg{width:60px;height:78px}
+.bi.lg svg{height:74px;width:49px}
+textarea{width:100%;background:var(--field);color:var(--txt);border:1px solid transparent;border-radius:10px;padding:11px 12px;font:16px/1.4 inherit;font-family:inherit;resize:vertical}
+textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
+.rate{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;justify-items:center;margin:4px 0 6px}
+.rate .chip{width:48px;height:48px;font-size:18px}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:14px}
+.note{display:inline-block;padding:2px 9px;border-radius:12px;font:700 14px/1.4 var(--num);color:#1c1f23;vertical-align:1px}
+.bilan{display:flex;align-items:center;gap:14px}
+.bilan .score{font:700 40px/1 var(--num);flex:none}
+.bilan .score small{font-size:16px;color:var(--mut)}
+.with-add>.bi{flex:none}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
+.tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tbtn.run{background:var(--yellow);color:#1c1f23}
+.tbtn.ring{background:var(--red);color:#fff;animation:pulse 1s infinite}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+.modal.open{display:flex}
+.sheet{background:var(--card);border-radius:18px;padding:18px;width:100%;max-width:330px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.sheet h2{margin:0 0 4px;font:600 17px/1.2 var(--num)}
+.big{font:700 64px/1.1 var(--num);font-variant-numeric:tabular-nums;margin:8px 0}
+.big small{font-size:20px;color:var(--mut)}
+.stepper{display:flex;align-items:center;justify-content:center;gap:16px}
+.stepper .btn{width:56px;height:56px;border-radius:50%;font-size:28px;padding:0}
+.bar{height:6px;background:var(--field);border-radius:3px;overflow:hidden;margin:4px 0 16px}
+.bar i{display:block;height:100%;width:100%;background:var(--yellow)}
+.ringtxt{color:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}.tbtn.ring,.ringtxt{animation:none}}
+</style>
+</head>
+<body>
+<header><div class="hd"><div><h1 id="title">Séance</h1><p id="subtitle"></p></div>
+  <button id="tbtn" class="tbtn" aria-label="Minuteur" onclick="openTimer()"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M18.5 6.5l1.5-1.5"/></svg><span id="tpill"></span></button></div></header>
+<main id="main"></main>
+<nav>
+  <button data-t="seance" class="on"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg>Séance</button>
+  <button data-t="histo"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Historique</button>
+  <button data-t="stats"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-6M11 20V6M16 20v-9M21 20V9"/></svg>Statistiques</button>
+  <button data-t="prog"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>Programmes</button>
+  <button data-t="reglages"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Réglages</button>
+</nav>
+<div class="toast" id="toast"></div>
+<div class="modal" id="smodal" onclick="if(event.target===this)closeFinish()"><div class="sheet" id="ssheet" role="dialog" aria-label="Terminer la séance"></div></div>
+<div class="modal" id="tmodal" onclick="if(event.target===this)closeTimer()"><div class="sheet" id="tsheet" role="dialog" aria-label="Minuteur"></div></div>
+
+<script>
+/* ---------- Outils ---------- */
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const ds = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayStr = () => ds(new Date());
+const nowTime = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+const fmt = n => (Math.round(n * 10) / 10).toLocaleString('fr-FR');
+const short = v => v >= 1e6 ? fmt(v / 1e6) + ' M' : v >= 1e4 ? fmt(v / 1e3) + ' k' : fmt(v);
+const frDate = s => new Date(s + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+const frShort = s => new Date(s + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+const DAYS = ['L','M','M','J','V','S','D'];
+const DAYN = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+const MONTHS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const weekday = s => ((new Date(s + 'T12:00:00').getDay() + 6) % 7) + 1; // 1 = lundi … 7 = dimanche
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(toast.tm); toast.tm = setTimeout(() => t.className = 'toast' + (err ? ' err' : ''), 1800);
+}
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+}
+
+/* ---------- Données (stockées sur l'iPhone) ---------- */
+const KEY = 'forenix-muscu-v1';
+function seed() {
+  const L = a => a.map(name => ({id: uid(), name}));
+  return {
+    v: 1,
+    exercises: L(['Pectoraux','Dos','Épaules','Bras','Jambes','Abdominaux']),
+    movements: L(['Développé couché','Tirage vertical','Rowing barre','Développé militaire','Curl haltères','Extension triceps poulie','Squat','Presse à cuisses','Soulevé de terre','Crunch']),
+    fields: [], entries: [], programs: [], sessions: []
+  };
+}
+let db = null;
+try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!db || !Array.isArray(db.entries)) db = seed();
+if (!Array.isArray(db.sessions)) db.sessions = [];
+function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('Enregistrement impossible sur cet appareil', true); } }
+save();
+
+const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
+const findName = (list, id) => (db[list].find(x => x.id === id) || {}).name || '';
+const nameOf = (list, id, fallback) => findName(list, id) || fallback || '—';
+
+function totals(es) {
+  const t = {ex: es.length, sets: 0, reps: 0, ton: 0};
+  for (const e of es) { const s = num(e.sets), r = num(e.reps); t.sets += s; t.reps += s * r; t.ton += s * r * num(e.weight); }
+  return t;
+}
+function statBoxes(t) {
+  return `<div class="stats">
+    <div class="stat" style="--c:var(--green)"><b>${fmt(t.ex)}</b><span>exercices</span></div>
+    <div class="stat" style="--c:var(--blue)"><b>${fmt(t.sets)}</b><span>séries</span></div>
+    <div class="stat" style="--c:var(--yellow)"><b>${fmt(t.reps)}</b><span>répétitions</span></div>
+    <div class="stat" style="--c:var(--red)"><b>${short(t.ton)} <small>kg</small></b><span>poids total soulevé</span></div>
+  </div>`;
+}
+function perExerciseTable(es) {
+  const per = {};
+  const zk = {};
+  es.forEach(e => { const k = nameOf('exercises', e.exerciseId, e.exName); (per[k] = per[k] || []).push(e); if (!zk[k]) zk[k] = zoneFor(e.exerciseId, e.movementId, e.exName, e.mvName); });
+  const keys = Object.keys(per).sort((a, b) => a.localeCompare(b, 'fr'));
+  if (!keys.length) return '';
+  return `<table><tr><th>Par exercice</th><th class="n">Séries</th><th class="n">Rép.</th><th class="n">kg</th></tr>
+    ${keys.map(k => { const x = totals(per[k]); return `<tr><td>${tile(zk[k], 'sm')}${h(k)}</td><td class="n">${fmt(x.sets)}</td><td class="n">${fmt(x.reps)}</td><td class="n">${short(x.ton)}</td></tr>`; }).join('')}</table>`;
+}
+const opts = (list, sel) => '<option value="">Choisir…</option>' +
+  [...db[list]].sort(byName).map(x => `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`).join('');
+
+/* ---------- Icônes des parties du corps ---------- */
+const ZONES = {pecs:'Pectoraux', dos:'Dos', epaules:'Épaules', bras:'Bras', abdos:'Abdominaux', fessiers:'Fessiers', jambes:'Jambes', full:'Corps entier', cardio:'Cardio'};
+const plain = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Reconnaissance automatique d'après le nom de l'exercice (partie du corps)…
+const KW_EX = [['pecs',/pec|poitrine|chest/],['dos',/\bdos\b|lomb|trapez|dorsa|\bback/],['epaules',/epaule|delto/],['bras',/bras|biceps|triceps/],
+  ['abdos',/abdo|gainage|tronc|core|oblique/],['fessiers',/fess|glute/],['jambes',/jambe|cuisse|quadri|ischio|mollet|\bleg/],
+  ['full',/full|corps entier|complet/],['cardio',/cardio|course|velo|rameur|elliptique/]];
+// …ou, à défaut, d'après le nom du mouvement
+const KW_MV = [['bras',/curl|triceps|dips|barre au front/],['pecs',/couche|pompe|ecarte|pec deck|butterfly/],['epaules',/militaire|elevation|oiseau|arnold/],
+  ['dos',/traction|tirage|rowing|souleve|pull/],['fessiers',/hip thrust|pont fessier|abduct/],['jambes',/squat|presse|fente|leg|mollet|extension jambe/],
+  ['abdos',/crunch|planche|releve de jambes|gainage/],['cardio',/course|velo|rameur|corde/]];
+const detect = (name, kw) => { const n = plain(name); const m = kw.find(([, r]) => r.test(n)); return m ? m[0] : ''; };
+function zoneOfEx(ex) { if (!ex) return ''; if (ex.icon) return ex.icon === 'none' ? '' : ex.icon; return detect(ex.name, KW_EX); }
+function zoneFor(exId, mvId, exName, mvName) {
+  const ex = db.exercises.find(x => x.id === exId);
+  let z = ex ? zoneOfEx(ex) : detect(exName, KW_EX);
+  if (!z && !(ex && ex.icon === 'none')) z = detect(findName('movements', mvId) || mvName, KW_MV);
+  return z;
+}
+function bodySVG(z) {
+  const B = '#4d5560', H = '#ffcf33', c = z === 'full' ? H : B, cut = 'stroke="#30353d" stroke-width=".8"';
+  const limbs = (col, arms, legs) => `<g fill="none" stroke="${col}" stroke-linecap="round">
+      ${arms ? '<path d="M11.2 15.2 L8.8 25.6 M28.8 15.2 L31.2 25.6" stroke-width="3.6"/><path d="M8.8 25.6 L7.8 35 M31.2 25.6 L32.2 35" stroke-width="3"/>' : ''}
+      ${legs ? '<path d="M16.6 37 L16.1 47 M23.4 37 L23.9 47" stroke-width="5.2"/><path d="M16.1 47 L16.2 57.5 M23.9 47 L23.8 57.5" stroke-width="3.8"/>' : ''}</g>`;
+  const hl = {
+    pecs: `<g fill="${H}" ${cut}><path d="M12.9 14.4 Q16.5 12.9 19.6 13.9 L19.6 20.6 Q15.8 21.8 13.1 20 Z"/><path d="M27.1 14.4 Q23.5 12.9 20.4 13.9 L20.4 20.6 Q24.2 21.8 26.9 20 Z"/></g>`,
+    abdos: `<g fill="${H}" ${cut}>${[21.2, 24.6, 28].map(y => `<rect x="16.4" y="${y}" width="3.3" height="3" rx=".7"/><rect x="20.3" y="${y}" width="3.3" height="3" rx=".7"/>`).join('')}</g>`,
+    epaules: `<g fill="${H}" ${cut}><circle cx="11.8" cy="14.9" r="3.5"/><circle cx="28.2" cy="14.9" r="3.5"/></g>`,
+    dos: `<g fill="${H}" ${cut}><path d="M16.2 12.7 L23.8 12.7 L20 17.2 Z"/><path d="M13.3 15.2 L17.6 17.6 L18.4 27.4 L14.4 25.4 Z"/><path d="M26.7 15.2 L22.4 17.6 L21.6 27.4 L25.6 25.4 Z"/></g>`,
+    fessiers: `<path fill="${H}" ${cut} d="M14.4 32 L25.6 32 L26.6 37.5 L13.4 37.5 Z"/>`,
+    bras: limbs(H, true, false),
+    jambes: limbs(H, false, true),
+    cardio: `<path fill="var(--red)" ${cut} d="M20 25 L15.6 20.6 A2.5 2.5 0 1 1 20 17.3 A2.5 2.5 0 1 1 24.4 20.6 Z"/>`
+  }[z] || '';
+  return `<svg viewBox="0 0 40 60" aria-hidden="true"><g fill="${c}"><circle cx="20" cy="6" r="4.2"/><rect x="18.3" y="9.6" width="3.4" height="3"/>
+    <path d="M12 13.2 Q20 11.6 28 13.2 L27 24 Q26.4 29 25.6 32 L14.4 32 Q13.6 29 13 24 Z"/><path d="M14.4 32 L25.6 32 L26.6 37.5 L13.4 37.5 Z"/></g>
+    ${limbs(c, true, true)}${hl}</svg>`;
+}
+const tile = (z, cls = '') => `<span class="bi ${cls}" title="${h(ZONES[z] || 'Partie du corps non reconnue')}">${bodySVG(z)}</span>`;
+function setIcon(id, v) { const ex = db.exercises.find(x => x.id === id); if (!ex) return; if (v) ex.icon = v; else delete ex.icon; save(); render(); }
+
+/* ---------- État de l'interface ---------- */
+let tab = 'seance', editId = null, curProg = '', editProg = null, cal = null;
+let st = {metric: 'ton', group: 'day', mv: ''};
+const newForm = () => ({date: todayStr(), time: nowTime(), exerciseId: '', movementId: '', reps: '', sets: '', weight: '', custom: {}});
+let F = newForm(); // NB : « form » est réservé dans les attributs onclick
+
+const TITLES = {seance:'Séance', histo:'Historique', stats:'Statistiques', prog:'Programmes', reglages:'Réglages'};
+function show(t) {
+  tab = t;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  render(); window.scrollTo(0, 0);
+}
+function render() {
+  $('#title').textContent = TITLES[tab];
+  const sub = frDate(todayStr());
+  $('#subtitle').textContent = sub.charAt(0).toUpperCase() + sub.slice(1);
+  ({seance: vSeance, histo: vHisto, stats: vStats, prog: vProg, reglages: vSettings})[tab]($('#main'));
+}
+
+/* ---------- Séance ---------- */
+function entryRow(e) {
+  const extra = db.fields.filter(f => e.custom && e.custom[f.id] !== undefined && e.custom[f.id] !== '')
+    .map(f => `${h(f.name)} : ${h(e.custom[f.id])}`).join(', ');
+  const w = num(e.weight) ? `, ${fmt(num(e.weight))} kg` : '';
+  return `<div class="item">${tile(zoneFor(e.exerciseId, e.movementId, e.exName, e.mvName))}<div class="grow">
+      <div class="t">${h(nameOf('movements', e.movementId, e.mvName))}</div>
+      <div class="s">${e.time ? `<span style="color:var(--txt);margin-right:6px">${h(e.time)}</span>` : ''}${h(nameOf('exercises', e.exerciseId, e.exName))}, ${num(e.sets)} × ${num(e.reps)} rép.${w}${extra ? '<br>' + extra : ''}</div>
+    </div>
+    <button class="icon" aria-label="Modifier" onclick="editEntry('${e.id}')">✎</button>
+    <button class="icon" aria-label="Supprimer" onclick="delEntry('${e.id}')">🗑</button></div>`;
+}
+function vSeance(m) {
+  const f = F;
+  const day = db.entries.filter(e => e.date === f.date).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const prog = db.programs.find(p => p.id === curProg);
+  const isToday = f.date === todayStr();
+
+  let progHTML = '';
+  if (db.programs.length) {
+    progHTML = `<div class="card"><h2>Programme suivi</h2>
+      <select onchange="curProg=this.value;render()"><option value="">Séance libre</option>
+      ${db.programs.map(p => `<option value="${p.id}"${p.id === curProg ? ' selected' : ''}>${h(p.name)}</option>`).join('')}</select>
+      ${prog ? `<div style="margin-top:10px">${prog.items.map((it, i) => {
+        const done = day.some(e => e.programId === prog.id && e.movementId === it.movementId && e.exerciseId === it.exerciseId);
+        return `<div class="item">${tile(zoneFor(it.exerciseId, it.movementId))}<div class="grow"><div class="t">${h(nameOf('movements', it.movementId))}${done ? '<span class="check">✓</span>' : ''}</div>
+          <div class="s">${h(nameOf('exercises', it.exerciseId))}, ${h(it.sets || '?')} × ${h(it.reps || '?')} rép.${it.weight ? ', ' + h(it.weight) + ' kg' : ''}</div></div>
+          <button class="btn sm" onclick="useItem(${i})">Utiliser</button></div>`;
+      }).join('') || '<div class="empty">Ce programme ne contient aucun mouvement. Ajoutez-en dans l’onglet Programmes.</div>'}</div>` : ''}
+    </div>`;
+  }
+
+  m.innerHTML = progHTML + `
+  <div class="card" id="formcard"><h2>${editId ? 'Modifier la saisie' : 'Nouvelle saisie'}</h2>
+    <div class="row">
+      <div><label>Date</label><input type="date" value="${f.date}" onchange="F.date=this.value||todayStr();render()"></div>
+      <div><label>Heure</label><input type="time" value="${f.time}" oninput="F.time=this.value"></div>
+    </div>
+    <div class="field"><label>Exercice</label><div class="with-add" style="align-items:center">
+      ${tile(zoneFor(f.exerciseId, f.movementId), 'lg')}
+      <select style="flex:1" onchange="F.exerciseId=this.value;render()">${opts('exercises', f.exerciseId)}</select>
+      <button class="btn" aria-label="Nouvel exercice" onclick="quickAdd('exercises','exerciseId')">＋</button></div></div>
+    <div class="field"><label>Mouvement</label><div class="with-add">
+      <select onchange="F.movementId=this.value;render()">${opts('movements', f.movementId)}</select>
+      <button class="btn" aria-label="Nouveau mouvement" onclick="quickAdd('movements','movementId')">＋</button></div></div>
+    <div class="row three">
+      <div><label>Répétitions</label><input inputmode="numeric" value="${h(f.reps)}" oninput="F.reps=this.value"></div>
+      <div><label>Séries</label><input inputmode="numeric" value="${h(f.sets)}" oninput="F.sets=this.value"></div>
+      <div><label>Poids (kg)</label><input inputmode="decimal" value="${h(f.weight)}" oninput="F.weight=this.value"></div>
+    </div>
+    ${db.fields.map(fd => `<div class="field"><label>${h(fd.name)}</label>
+      <input ${fd.type === 'number' ? 'inputmode="decimal"' : ''} value="${h(f.custom[fd.id] ?? '')}" oninput="F.custom['${fd.id}']=this.value"></div>`).join('')}
+    <button class="btn pri full" onclick="saveEntry()">${editId ? 'Enregistrer les modifications' : 'Enregistrer'}</button>
+    ${editId ? '<button class="btn ghost full gap" onclick="cancelEdit()">Annuler</button>' : ''}
+  </div>
+  <div class="card"><h2>${isToday ? 'Totaux du jour' : 'Totaux du ' + h(frShort(f.date))}</h2>${statBoxes(totals(day))}${perExerciseTable(day)}</div>
+  <div class="card"><h2>Saisies${isToday ? ' du jour' : ''} (${day.length})</h2>${day.map(entryRow).join('') || '<div class="empty">Rien d’enregistré à cette date. Remplissez le formulaire ci-dessus.</div>'}</div>
+  ${bilanCard(f.date, day.length)}`;
+}
+function quickAdd(list, field) {
+  const name = (prompt(list === 'exercises' ? 'Nom du nouvel exercice :' : 'Nom du nouveau mouvement :') || '').trim();
+  if (!name) return;
+  if (db[list].some(x => x.name.toLowerCase() === name.toLowerCase())) { toast('Ce nom existe déjà', true); return; }
+  const it = {id: uid(), name}; db[list].push(it); save();
+  F[field] = it.id; render(); toast('Ajouté');
+}
+function saveEntry() {
+  const f = F;
+  if (!f.exerciseId && !f.movementId) { toast('Choisissez un exercice ou un mouvement', true); return; }
+  const wasEdit = !!editId;
+  const e = {
+    id: editId || uid(), date: f.date || todayStr(), time: f.time,
+    exerciseId: f.exerciseId, movementId: f.movementId,
+    exName: findName('exercises', f.exerciseId), mvName: findName('movements', f.movementId),
+    reps: f.reps, sets: f.sets, weight: f.weight, custom: {...f.custom},
+    programId: wasEdit ? (db.entries.find(x => x.id === editId) || {}).programId || null : (curProg || null)
+  };
+  if (wasEdit) db.entries[db.entries.findIndex(x => x.id === editId)] = e; else db.entries.push(e);
+  save();
+  editId = null;
+  const keep = {date: e.date, exerciseId: e.exerciseId, movementId: e.movementId};
+  F = Object.assign(newForm(), keep);
+  render(); toast(wasEdit ? 'Modifications enregistrées' : 'Enregistré');
+}
+function editEntry(id) {
+  const e = db.entries.find(x => x.id === id); if (!e) return;
+  editId = id;
+  F = {date: e.date, time: e.time || '', exerciseId: e.exerciseId, movementId: e.movementId, reps: e.reps, sets: e.sets, weight: e.weight, custom: {...(e.custom || {})}};
+  if (tab !== 'seance') show('seance'); else render();
+  $('#formcard').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function cancelEdit() { editId = null; const d = F.date; F = newForm(); F.date = d; render(); }
+function delEntry(id) {
+  if (!confirm('Supprimer cette saisie ?')) return;
+  db.entries = db.entries.filter(x => x.id !== id); save();
+  if (editId === id) cancelEdit(); else render();
+  toast('Saisie supprimée');
+}
+function useItem(i) {
+  const it = db.programs.find(p => p.id === curProg).items[i];
+  editId = null;
+  Object.assign(F, {time: nowTime(), exerciseId: it.exerciseId, movementId: it.movementId, reps: it.reps, sets: it.sets, weight: it.weight});
+  render(); $('#formcard').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* ---------- Fin de séance : note de difficulté et commentaire ---------- */
+const sessionOf = d => db.sessions.find(s => s.date === d);
+const rateColor = v => `hsl(${Math.round(125 - (v - 1) * 125 / 9)},62%,48%)`;
+let S = null;
+function bilanCard(d, n) {
+  const ses = sessionOf(d);
+  if (ses) return `<div class="card"><h2>Bilan de la séance</h2>
+    <div class="bilan"><div class="score" style="color:${rateColor(ses.rating)}">${ses.rating}<small>/10</small></div>
+      <div class="grow"><div class="t">Difficulté ressentie</div>${ses.comment ? `<div class="s" style="white-space:pre-wrap">${h(ses.comment)}</div>` : '<div class="s">Pas de commentaire</div>'}</div></div>
+    <button class="btn sm gap" onclick="openFinish()">Modifier le bilan</button></div>`;
+  return n ? `<button class="btn pri full" style="margin-bottom:12px;min-height:52px;font-size:17px" onclick="openFinish()">Terminer la séance</button>` : '';
+}
+function openFinish() {
+  const ses = sessionOf(F.date);
+  S = {date: F.date, rating: ses ? ses.rating : 0, comment: ses ? ses.comment : ''};
+  const t = totals(db.entries.filter(e => e.date === S.date));
+  $('#ssheet').innerHTML = `<h2>${ses ? 'Modifier le bilan' : 'Terminer la séance'}</h2>
+    <p class="muted" style="margin:2px 0 14px">${t.ex} exercice${t.ex > 1 ? 's' : ''}, ${fmt(t.sets)} séries, ${short(t.ton)} kg soulevés</p>
+    <label style="text-align:left">Difficulté de la séance, sur 10</label>
+    <div class="rate">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button class="chip" data-v="${v}" onclick="setRating(${v})">${v}</button>`).join('')}</div>
+    <div class="scale"><span>1, très facile</span><span>10, épuisante</span></div>
+    <label style="text-align:left">Commentaire (facultatif)</label>
+    <textarea rows="3" placeholder="Forme du jour, sensations, douleurs…" oninput="S.comment=this.value">${h(S.comment)}</textarea>
+    <button class="btn pri full" style="margin-top:14px" onclick="saveFinish()">Enregistrer le bilan</button>
+    ${ses ? '<button class="btn ghost danger full gap" onclick="delFinish()">Supprimer le bilan</button>' : ''}
+    <button class="btn ghost full gap" onclick="closeFinish()">Annuler</button>`;
+  setRating(S.rating);
+  $('#smodal').classList.add('open');
+}
+function setRating(v) {
+  S.rating = v;
+  document.querySelectorAll('#ssheet .rate .chip').forEach(b => {
+    const on = +b.dataset.v === v;
+    b.classList.toggle('on', on);
+    b.style.background = on ? rateColor(v) : ''; b.style.borderColor = on ? rateColor(v) : ''; b.style.color = on ? '#fff' : '';
+  });
+}
+function closeFinish() { $('#smodal').classList.remove('open'); S = null; }
+function saveFinish() {
+  if (!S.rating) { toast('Choisissez une note de 1 à 10', true); return; }
+  const ses = sessionOf(S.date), wasNew = !ses;
+  const data = {date: S.date, rating: S.rating, comment: (S.comment || '').trim(), time: ses ? ses.time : nowTime(), programId: ses ? ses.programId : (curProg || null)};
+  if (ses) Object.assign(ses, data); else db.sessions.push(Object.assign({id: uid()}, data));
+  save(); closeFinish();
+  if (wasNew) curProg = '';
+  render(); toast(wasNew ? 'Séance terminée, bravo !' : 'Bilan modifié');
+}
+function delFinish() {
+  if (!confirm('Supprimer le bilan de cette séance ? Les saisies sont conservées.')) return;
+  db.sessions = db.sessions.filter(s => s.date !== S.date); save(); closeFinish(); render(); toast('Bilan supprimé');
+}
+
+/* ---------- Historique ---------- */
+function vHisto(m) {
+  const days = [...new Set(db.entries.map(e => e.date))].sort().reverse();
+  const first = days[days.length - 1];
+  m.innerHTML = `<div class="card"><h2>Totaux cumulés</h2>${statBoxes(totals(db.entries))}
+      <p class="muted" style="margin:10px 0 0">${days.length} jour${days.length > 1 ? 's' : ''} d’entraînement${first ? ' depuis le ' + h(frDate(first)) : ''}${db.sessions.length ? `, difficulté moyenne ${fmt(db.sessions.reduce((x, y) => x + y.rating, 0) / db.sessions.length)}/10` : ''}</p>
+      ${perExerciseTable(db.entries)}</div>
+    ${days.map(d => {
+      const es = db.entries.filter(e => e.date === d).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      const t = totals(es);
+      const ses = sessionOf(d);
+      return `<details class="card"><summary><div class="t" style="text-transform:capitalize">${h(frDate(d))}${ses ? ` <span class="note" style="background:${rateColor(ses.rating)}">${ses.rating}/10</span>` : ''}</div>
+        <div class="s">${t.ex} exercice${t.ex > 1 ? 's' : ''}, ${fmt(t.sets)} séries, ${fmt(t.reps)} rép., ${short(t.ton)} kg</div></summary>
+        <div style="margin-top:10px">${es.map(entryRow).join('')}</div>
+        ${ses && ses.comment ? `<p class="muted" style="margin:8px 0 0;white-space:pre-wrap">« ${h(ses.comment)} »</p>` : ''}
+        <button class="btn sm gap" onclick="gotoDay('${d}')">Ouvrir cette journée</button></details>`;
+    }).join('') || '<div class="empty">Aucun entraînement enregistré pour l’instant.</div>'}`;
+}
+function gotoDay(d) { editId = null; F = newForm(); F.date = d; show('seance'); }
+
+/* ---------- Statistiques ---------- */
+function metricVal(es, k) {
+  if (k === 'diff') { const r = [...new Set(es.map(e => e.date))].map(sessionOf).filter(Boolean).map(s => s.rating); return r.length ? r.reduce((a, b) => a + b, 0) / r.length : 0; }
+  if (k.startsWith('f:')) { const id = k.slice(2); return es.reduce((s, e) => s + num(e.custom && e.custom[id]), 0); }
+  return totals(es)[k];
+}
+function groupKey(d, g) {
+  if (g === 'day') return d;
+  if (g === 'month') return d.slice(0, 7);
+  const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ds(x);
+}
+function label(k, g) {
+  if (g === 'month') { const [y, mo] = k.split('-'); return MONTHS[mo - 1] + ' ' + y.slice(2); }
+  const [, mo, d] = k.split('-'); return +d + '/' + mo;
+}
+function barChart(data, color, fixedMax) {
+  if (!data.length) return '<div class="empty">Les graphiques apparaîtront après vos premières saisies.</div>';
+  const W = 340, H = 170, L = 40, B = 20, T = 8, max = fixedMax || Math.max(...data.map(d => d.v), 1), bw = (W - L) / data.length;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img">`;
+  for (let i = 0; i <= 3; i++) { const y = T + (H - B - T) * i / 3; s += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="#3a4049" stroke-width=".6"/><text x="${L - 5}" y="${y + 3}" text-anchor="end">${short(Math.round(max * (1 - i / 3)))}</text>`; }
+  const step = Math.ceil(data.length / 8);
+  data.forEach((d, i) => {
+    const bh = (H - B - T) * d.v / max, x = L + i * bw + bw * .18;
+    s += `<rect x="${x}" y="${H - B - bh}" width="${bw * .64}" height="${Math.max(bh, 0)}" rx="2" fill="${color}"><title>${h(d.l)} : ${fmt(d.v)}</title></rect>`;
+    if (i % step === 0) s += `<text x="${x + bw * .32}" y="${H - 6}" text-anchor="middle">${h(d.l)}</text>`;
+  });
+  return s + '</svg>';
+}
+function lineChart(data) {
+  if (!data.length) return '<div class="empty">Aucune charge enregistrée pour ce mouvement.</div>';
+  const W = 340, H = 160, L = 36, B = 20, T = 10, vs = data.map(d => d.v);
+  let mn = Math.min(...vs), mx = Math.max(...vs);
+  if (mn === mx) { mn = Math.max(0, mn - 5); mx += 5; }
+  const X = i => data.length === 1 ? (L + W) / 2 : L + 10 + (W - L - 20) * i / (data.length - 1);
+  const Y = v => T + (H - B - T) * (1 - (v - mn) / (mx - mn));
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img">`;
+  for (let i = 0; i <= 3; i++) { const v = mx - (mx - mn) * i / 3, y = Y(v); s += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="#3a4049" stroke-width=".6"/><text x="${L - 5}" y="${y + 3}" text-anchor="end">${fmt(v)}</text>`; }
+  s += `<polyline fill="none" stroke="#3e8ef7" stroke-width="2" stroke-linejoin="round" points="${data.map((d, i) => X(i) + ',' + Y(d.v)).join(' ')}"/>`;
+  const step = Math.ceil(data.length / 7);
+  data.forEach((d, i) => {
+    s += `<circle cx="${X(i)}" cy="${Y(d.v)}" r="3.2" fill="#1c1f23" stroke="#3e8ef7" stroke-width="2"><title>${h(d.l)} : ${fmt(d.v)} kg</title></circle>`;
+    if (i % step === 0) s += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${h(d.l)}</text>`;
+  });
+  return s + '</svg>';
+}
+function calHTML() {
+  const now = new Date();
+  if (!cal) cal = {y: now.getFullYear(), m: now.getMonth()};
+  const first = new Date(cal.y, cal.m, 1), start = (first.getDay() + 6) % 7, n = new Date(cal.y, cal.m + 1, 0).getDate();
+  const done = new Set(db.entries.map(e => e.date));
+  const planned = new Set(db.programs.flatMap(p => p.days || []));
+  const today = todayStr();
+  let cells = DAYS.map(d => `<div class="h">${d}</div>`).join('') + '<div></div>'.repeat(start), count = 0;
+  for (let d = 1; d <= n; d++) {
+    const s = `${cal.y}-${pad(cal.m + 1)}-${pad(d)}`, cls = ['d'];
+    if (done.has(s)) { cls.push('done'); count++; }
+    else if (planned.has(weekday(s)) && s >= today) cls.push('plan');
+    if (s === today) cls.push('today');
+    cells += `<div class="${cls.join(' ')}" onclick="gotoDay('${s}')">${d}</div>`;
+  }
+  const title = first.toLocaleDateString('fr-FR', {month: 'long', year: 'numeric'});
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button class="btn sm" aria-label="Mois précédent" onclick="calNav(-1)">‹</button>
+      <b style="text-transform:capitalize;font-family:var(--num)">${title}</b>
+      <button class="btn sm" aria-label="Mois suivant" onclick="calNav(1)">›</button></div>
+    <div class="cal">${cells}</div>
+    <div class="legend"><span><i style="background:var(--green)"></i>Entraînement fait (${count} ce mois)</span><span><i style="box-shadow:inset 0 0 0 2px var(--yellow)"></i>Prévu par un programme</span></div>`;
+}
+function calNav(d) { cal.m += d; if (cal.m < 0) { cal.m = 11; cal.y--; } if (cal.m > 11) { cal.m = 0; cal.y++; } render(); }
+function vStats(m) {
+  const mets = [['ton', 'Poids soulevé (kg)', '#e5484d'], ['reps', 'Répétitions', '#f5c542'], ['sets', 'Séries', '#3e8ef7'], ['ex', 'Exercices', '#3fb971'], ['diff', 'Difficulté (/10)', '#b58cf5'],
+    ...db.fields.filter(f => f.type === 'number').map(f => ['f:' + f.id, f.name, '#9aa1ab'])];
+  if (!mets.some(x => x[0] === st.metric)) st.metric = 'ton';
+  const met = mets.find(x => x[0] === st.metric);
+  const groups = {};
+  db.entries.forEach(e => { const k = groupKey(e.date, st.group); (groups[k] = groups[k] || []).push(e); });
+  const keys = Object.keys(groups).sort().slice(st.group === 'day' ? -14 : -12);
+  const data = keys.map(k => ({l: label(k, st.group), v: metricVal(groups[k], st.metric)}));
+  const counted = st.metric === 'diff' ? data.filter(d => d.v > 0) : data;
+  const avg = counted.length ? counted.reduce((s, d) => s + d.v, 0) / counted.length : 0;
+
+  const mvs = [...db.movements].sort(byName);
+  if (!mvs.some(x => x.id === st.mv)) {
+    const last = [...db.entries].reverse().find(e => e.movementId && mvs.some(x => x.id === e.movementId));
+    st.mv = last ? last.movementId : (mvs[0] || {}).id || '';
+  }
+  const pe = db.entries.filter(e => e.movementId === st.mv), byDay = {};
+  pe.forEach(e => { byDay[e.date] = Math.max(byDay[e.date] || 0, num(e.weight)); });
+  const pdata = Object.keys(byDay).sort().slice(-20).map(k => ({l: label(k, 'day'), v: byDay[k]}));
+  const rec = pe.length ? Math.max(...pe.map(e => num(e.weight))) : 0;
+  const perLabel = {day: 'séance', week: 'semaine', month: 'mois'}[st.group];
+
+  m.innerHTML = `<div class="card"><h2>Évolution dans le temps</h2>
+      <div class="row">
+        <select onchange="st.metric=this.value;render()">${mets.map(x => `<option value="${x[0]}"${x[0] === st.metric ? ' selected' : ''}>${h(x[1])}</option>`).join('')}</select>
+        <select onchange="st.group=this.value;render()">${[['day', 'Par séance'], ['week', 'Par semaine'], ['month', 'Par mois']].map(x => `<option value="${x[0]}"${x[0] === st.group ? ' selected' : ''}>${x[1]}</option>`).join('')}</select>
+      </div>
+      ${barChart(data, met[2], st.metric === 'diff' ? 10 : 0)}
+      ${data.length ? `<p class="muted" style="margin:8px 0 0">Moyenne par ${perLabel} : <b>${fmt(avg)}</b></p>` : ''}
+    </div>
+    <div class="card"><h2>Progression d’un mouvement</h2>
+      <select onchange="st.mv=this.value;render()" style="margin-bottom:10px">${mvs.map(x => `<option value="${x.id}"${x.id === st.mv ? ' selected' : ''}>${h(x.name)}</option>`).join('')}</select>
+      ${lineChart(pdata)}
+      ${pe.length ? `<p class="muted" style="margin:8px 0 0">Charge maximale par séance. Record : <b>${fmt(rec)} kg</b></p>` : ''}
+    </div>
+    <div class="card"><h2>Calendrier</h2>${calHTML()}</div>`;
+}
+
+/* ---------- Programmes ---------- */
+function vProg(m) {
+  if (editProg) { m.innerHTML = progEditor(); return; }
+  m.innerHTML = `<button class="btn pri full" style="margin-bottom:12px" onclick="newProg()">＋ Nouveau programme</button>
+  ${db.programs.map(p => `<div class="card">
+      <div class="t" style="font:700 19px/1.2 var(--num)">${h(p.name)}</div>
+      <div class="muted" style="margin-bottom:6px">${p.days.length ? [...p.days].sort().map(d => DAYN[d - 1]).join(', ') + (p.time ? ' à ' + p.time : '') : 'Aucun jour planifié'}</div>
+      ${p.items.map(it => `<div class="item">${tile(zoneFor(it.exerciseId, it.movementId))}<div class="grow"><div class="t">${h(nameOf('movements', it.movementId))}</div>
+        <div class="s">${h(nameOf('exercises', it.exerciseId))}, ${h(it.sets || '?')} × ${h(it.reps || '?')} rép.${it.weight ? ', ' + h(it.weight) + ' kg' : ''}</div></div></div>`).join('')}
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn sm pri" onclick="startProg('${p.id}')">Démarrer</button>
+        <button class="btn sm" onclick="exportICS('${p.id}')">Ajouter les rappels</button>
+        <button class="btn sm" onclick="editP('${p.id}')">Modifier</button>
+        <button class="btn sm danger" onclick="delProg('${p.id}')">Supprimer</button>
+      </div></div>`).join('') || `<div class="card empty">Un programme regroupe vos mouvements sous un nom, par exemple « Full body », « Haut du corps » ou « Cuisses, performance ». Choisissez ensuite ses jours et son heure pour recevoir des rappels.</div>`}`;
+}
+function progEditor() {
+  const p = editProg, isNew = !db.programs.some(x => x.id === p.id);
+  const alarmLabel = v => v === 0 ? 'À l’heure' : v < 60 ? v + ' min avant' : (v / 60) + ' h avant';
+  return `<div class="card"><h2>${isNew ? 'Nouveau programme' : 'Modifier le programme'}</h2>
+    <div class="field"><label>Nom du programme</label><input value="${h(p.name)}" placeholder="Full body, Haut du corps…" oninput="editProg.name=this.value"></div>
+    <div class="field"><label>Jours d’entraînement</label><div class="chips">${DAYS.map((d, i) => `<button class="chip${p.days.includes(i + 1) ? ' on' : ''}" aria-label="${DAYN[i]}" onclick="togDay(${i + 1})">${d}</button>`).join('')}</div></div>
+    <div class="row" style="margin-bottom:0">
+      <div><label>Heure</label><input type="time" value="${h(p.time)}" oninput="editProg.time=this.value"></div>
+      <div><label>Rappel</label><select onchange="editProg.alarm=+this.value">${[0, 15, 30, 60, 120].map(v => `<option value="${v}"${v === p.alarm ? ' selected' : ''}>${alarmLabel(v)}</option>`).join('')}</select></div>
+    </div></div>
+  <div class="card"><h2>Mouvements du programme</h2>
+    ${p.items.map((it, i) => `<div style="${i ? 'border-top:1px solid var(--line);padding-top:12px;margin-top:12px' : ''}">
+      <div class="row">
+        <div><label>Exercice</label><select onchange="editProg.items[${i}].exerciseId=this.value">${opts('exercises', it.exerciseId)}</select></div>
+        <div><label>Mouvement</label><select onchange="editProg.items[${i}].movementId=this.value">${opts('movements', it.movementId)}</select></div>
+      </div>
+      <div class="row three">
+        <div><label>Rép.</label><input inputmode="numeric" value="${h(it.reps)}" oninput="editProg.items[${i}].reps=this.value"></div>
+        <div><label>Séries</label><input inputmode="numeric" value="${h(it.sets)}" oninput="editProg.items[${i}].sets=this.value"></div>
+        <div><label>Poids</label><input inputmode="decimal" value="${h(it.weight)}" oninput="editProg.items[${i}].weight=this.value"></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn sm" aria-label="Monter" onclick="moveItem(${i},-1)">↑</button>
+        <button class="btn sm" aria-label="Descendre" onclick="moveItem(${i},1)">↓</button>
+        <button class="btn sm danger" onclick="editProg.items.splice(${i},1);render()">Retirer</button>
+      </div></div>`).join('') || '<div class="empty">Ajoutez le premier mouvement de ce programme.</div>'}
+    <button class="btn full" style="margin-top:12px" onclick="editProg.items.push({exerciseId:'',movementId:'',reps:'',sets:'',weight:''});render()">＋ Ajouter un mouvement</button>
+  </div>
+  <button class="btn pri full" onclick="saveProg()">Enregistrer le programme</button>
+  <button class="btn ghost full gap" onclick="editProg=null;render()">Annuler</button>`;
+}
+function newProg() { editProg = {id: uid(), name: '', days: [], time: '18:00', alarm: 30, items: []}; render(); window.scrollTo(0, 0); }
+function editP(id) { editProg = JSON.parse(JSON.stringify(db.programs.find(p => p.id === id))); render(); window.scrollTo(0, 0); }
+function togDay(d) { const a = editProg.days; const i = a.indexOf(d); if (i < 0) a.push(d); else a.splice(i, 1); render(); }
+function moveItem(i, dir) { const a = editProg.items, j = i + dir; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; render(); }
+function saveProg() {
+  const p = editProg; p.name = (p.name || '').trim();
+  if (!p.name) { toast('Donnez un nom au programme', true); return; }
+  const i = db.programs.findIndex(x => x.id === p.id);
+  if (i < 0) db.programs.push(p); else db.programs[i] = p;
+  save(); editProg = null; render(); toast('Programme enregistré');
+}
+function delProg(id) {
+  if (!confirm('Supprimer ce programme ? Les séances déjà enregistrées sont conservées.')) return;
+  db.programs = db.programs.filter(p => p.id !== id); if (curProg === id) curProg = ''; save(); render(); toast('Programme supprimé');
+}
+function startProg(id) { curProg = id; editId = null; F = newForm(); show('seance'); }
+function exportICS(id) {
+  const p = db.programs.find(x => x.id === id);
+  if (!p.days.length) { toast('Choisissez d’abord les jours du programme', true); return; }
+  const esc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const codes = ['MO','TU','WE','TH','FR','SA','SU'];
+  const d = new Date();
+  for (let i = 0; i < 7 && !p.days.includes(((d.getDay() + 6) % 7) + 1); i++) d.setDate(d.getDate() + 1);
+  const [hh, mm] = (p.time || '18:00').split(':');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const desc = p.items.map(it => `${nameOf('movements', it.movementId)} (${nameOf('exercises', it.exerciseId)}) : ${it.sets || '?'} × ${it.reps || '?'}${it.weight ? ' à ' + it.weight + ' kg' : ''}`).join('\n');
+  const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Forenix//Carnet de muscu//FR','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    'UID:' + p.id + '@carnet-muscu', 'DTSTAMP:' + stamp,
+    `DTSTART:${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${hh}${mm}00`, 'DURATION:PT1H',
+    'RRULE:FREQ=WEEKLY;BYDAY=' + [...p.days].sort().map(x => codes[x - 1]).join(','),
+    'SUMMARY:' + esc('Entraînement : ' + p.name), 'DESCRIPTION:' + esc(desc || p.name),
+    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + esc(p.name), `TRIGGER:-PT${p.alarm || 0}M`,'END:VALARM',
+    'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  download(p.name.replace(/[^\p{L}\p{N}]+/gu, '-') + '.ics', ics, 'text/calendar;charset=utf-8');
+}
+
+/* ---------- Réglages ---------- */
+function iconPicker(x) {
+  const auto = detect(x.name, KW_EX);
+  return `<select style="margin-top:6px;min-height:36px;padding:6px 30px 6px 10px;font-size:14px" aria-label="Icône" onchange="setIcon('${x.id}',this.value)">
+    <option value="">Auto (${h(ZONES[auto] || 'non reconnu')})</option>
+    ${Object.entries(ZONES).map(([k, v]) => `<option value="${k}"${x.icon === k ? ' selected' : ''}>${v}</option>`).join('')}
+    <option value="none"${x.icon === 'none' ? ' selected' : ''}>Aucune</option></select>`;
+}
+function listEditor(key, title, hint) {
+  const list = key === 'fields' ? db[key] : [...db[key]].sort(byName);
+  return `<div class="card"><h2>${title}</h2>${hint ? `<p class="muted" style="margin:-6px 0 8px">${hint}</p>` : ''}
+    ${list.map(x => `<div class="item">${key === 'exercises' ? tile(zoneOfEx(x)) : ''}<div class="grow">${h(x.name)}${key === 'exercises' ? iconPicker(x) : ''}${key === 'fields' ? ` <span class="muted">(${x.type === 'number' ? 'nombre' : 'texte'})</span>` : ''}</div>
+      <button class="icon" aria-label="Renommer" onclick="renameItem('${key}','${x.id}')">✎</button>
+      <button class="icon" aria-label="Supprimer" onclick="delItem('${key}','${x.id}')">🗑</button></div>`).join('') || '<div class="empty">Liste vide</div>'}
+    <div class="with-add" style="margin-top:10px"><input id="add_${key}" placeholder="Nouveau nom">
+      ${key === 'fields' ? '<select id="type_fields" style="width:112px;flex:none"><option value="number">Nombre</option><option value="text">Texte</option></select>' : ''}
+      <button class="btn pri" onclick="addItem('${key}')">Ajouter</button></div></div>`;
+}
+function vSettings(m) {
+  m.innerHTML = listEditor('exercises', 'Exercices', 'L’icône de la partie du corps est choisie automatiquement d’après le nom. Vous pouvez la changer avec le menu sous chaque exercice.') +
+    listEditor('movements', 'Mouvements') +
+    listEditor('fields', 'Rubriques personnalisées', 'Champs supplémentaires ajoutés au formulaire de saisie, par exemple « Temps de repos », « Ressenti » ou « Commentaire ». Les rubriques de type nombre apparaissent aussi dans les statistiques.') +
+    `<div class="card"><h2>Sauvegarde</h2>
+      <p class="muted" style="margin-top:-6px">Vos données restent sur cet iPhone. Exportez-les régulièrement dans Fichiers ou iCloud Drive pour ne rien perdre.</p>
+      <button class="btn full" onclick="exportJSON()">Exporter mes données</button>
+      <label class="btn full gap" style="display:flex;align-items:center;justify-content:center;color:var(--txt);font-size:15px;margin-top:8px">Importer une sauvegarde
+        <input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this.files[0])"></label>
+      <button class="btn full ghost danger gap" onclick="resetAll()">Tout effacer</button></div>
+    <div class="card"><h2>Installer sur l’iPhone</h2>
+      <p class="muted" style="margin:0">Dans Safari, touchez le bouton Partager puis « Sur l’écran d’accueil ». L’application s’ouvre ensuite en plein écran et fonctionne sans connexion.</p></div>`;
+}
+function addItem(key) {
+  const inp = $('#add_' + key), name = inp.value.trim();
+  if (!name) return;
+  if (db[key].some(x => x.name.toLowerCase() === name.toLowerCase())) { toast('Ce nom existe déjà', true); return; }
+  const it = {id: uid(), name}; if (key === 'fields') it.type = $('#type_fields').value;
+  db[key].push(it); save(); render(); toast('Ajouté');
+}
+function renameItem(key, id) {
+  const it = db[key].find(x => x.id === id);
+  const name = (prompt('Nouveau nom :', it.name) || '').trim();
+  if (!name || name === it.name) return;
+  it.name = name; save(); render(); toast('Renommé');
+}
+function delItem(key, id) {
+  const it = db[key].find(x => x.id === id);
+  let msg = `Supprimer « ${it.name} » ?`;
+  if (key === 'exercises' || key === 'movements') {
+    const f = key === 'exercises' ? 'exerciseId' : 'movementId';
+    const n = db.entries.filter(e => e[f] === id).length;
+    if (n) msg += `\n\nIl apparaît dans ${n} saisie(s) : elles seront conservées avec leur nom actuel.`;
+  } else msg += '\n\nLes valeurs déjà saisies dans cette rubrique ne seront plus affichées.';
+  if (!confirm(msg)) return;
+  db[key] = db[key].filter(x => x.id !== id); save(); render(); toast('Supprimé');
+}
+function exportJSON() { download('muscu-sauvegarde-' + todayStr() + '.json', JSON.stringify(db, null, 1), 'application/json'); }
+function importJSON(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data.entries) || !Array.isArray(data.exercises)) throw 0;
+      if (!confirm(`Remplacer les données actuelles par cette sauvegarde (${data.entries.length} saisies) ?`)) return;
+      db = Object.assign(seed(), {fields: [], programs: [], sessions: []}, data); save(); render(); toast('Sauvegarde importée');
+    } catch (e) { toast('Ce fichier n’est pas une sauvegarde valide', true); }
+  };
+  r.readAsText(file);
+}
+function resetAll() {
+  if (!confirm('Effacer toutes les saisies, listes et programmes ?')) return;
+  if (!confirm('Dernière confirmation : cette action est définitive.')) return;
+  db = seed(); save(); F = newForm(); curProg = ''; render(); toast('Données effacées');
+}
+
+/* ---------- Minuteur ---------- */
+const T = {min: db.timerMin || 2, total: 0, end: 0, left: 0, state: 'idle', iv: null, ac: null, master: null, wake: null};
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + pad(s % 60); };
+const remaining = () => T.state === 'running' ? T.end - Date.now() : T.left;
+function openTimer() { $('#tmodal').classList.add('open'); drawTimer(); }
+function closeTimer() { if (T.state === 'ringing') resetTimer(); $('#tmodal').classList.remove('open'); }
+function setMin(v) { T.min = Math.min(99, Math.max(1, v)); db.timerMin = T.min; save(); drawTimer(); }
+function pill() {
+  $('#tbtn').className = 'tbtn' + (T.state === 'ringing' ? ' ring' : T.state !== 'idle' ? ' run' : '');
+  $('#tpill').textContent = T.state === 'idle' ? '' : T.state === 'ringing' ? '0:00' : mmss(remaining());
+}
+function updTimer() {
+  const rem = remaining(), b = $('#tbig'), bar = $('#tbar');
+  if (b) b.textContent = mmss(rem);
+  if (bar && T.total) bar.style.width = Math.max(0, 100 * rem / T.total) + '%';
+  pill();
+}
+function drawTimer() {
+  pill();
+  if (!$('#tmodal').classList.contains('open')) return;
+  const s = $('#tsheet');
+  if (T.state === 'idle') s.innerHTML = `<h2>Minuteur</h2>
+    <div class="stepper"><button class="btn" aria-label="Une minute de moins" onclick="setMin(T.min-1)">−</button>
+      <div class="big">${T.min}<small> min</small></div>
+      <button class="btn" aria-label="Une minute de plus" onclick="setMin(T.min+1)">+</button></div>
+    <div class="chips" style="justify-content:center;margin:6px 0 16px">${[1, 2, 3, 5, 10].map(v => `<button class="chip${v === T.min ? ' on' : ''}" onclick="setMin(${v})">${v}</button>`).join('')}</div>
+    <button class="btn pri full" onclick="startTimer()">Démarrer</button>
+    <button class="btn ghost full gap" onclick="closeTimer()">Fermer</button>`;
+  else if (T.state === 'ringing') s.innerHTML = `<h2>Temps écoulé</h2><div class="big ringtxt">0:00</div>
+    <button class="btn pri full" onclick="closeTimer()">Arrêter la sonnerie</button>`;
+  else s.innerHTML = `<h2>Minuteur de ${Math.round(T.total / 60000)} min${T.state === 'paused' ? ', en pause' : ''}</h2>
+    <div class="big" id="tbig">${mmss(remaining())}</div><div class="bar"><i id="tbar"></i></div>
+    <div class="row three">
+      <button class="btn" onclick="${T.state === 'running' ? 'pauseTimer()' : 'resumeTimer()'}">${T.state === 'running' ? 'Pause' : 'Reprendre'}</button>
+      <button class="btn" onclick="addMinute()">+1 min</button>
+      <button class="btn danger" onclick="resetTimer()">Arrêter</button></div>
+    <button class="btn ghost full" onclick="closeTimer()">Fermer, le décompte continue</button>`;
+  updTimer();
+}
+function run() { clearInterval(T.iv); T.iv = setInterval(tick, 250); T.state = 'running'; wakeOn(); drawTimer(); }
+function startTimer() { unlockAudio(); T.total = T.min * 60000; T.end = Date.now() + T.total; run(); }
+function pauseTimer() { T.left = T.end - Date.now(); T.state = 'paused'; clearInterval(T.iv); wakeOff(); drawTimer(); }
+function resumeTimer() { unlockAudio(); T.end = Date.now() + T.left; run(); }
+function addMinute() { if (T.state === 'running') T.end += 60000; else T.left += 60000; T.total += 60000; drawTimer(); }
+function resetTimer() { clearInterval(T.iv); stopRing(); T.state = 'idle'; T.left = 0; wakeOff(); drawTimer(); }
+function tick() { if (T.state !== 'running') return; if (T.end - Date.now() <= 0) finishTimer(); else updTimer(); }
+function finishTimer() { clearInterval(T.iv); T.state = 'ringing'; T.left = 0; wakeOff(); ring(); openTimer(); }
+/* Son : Web Audio, débloqué par le toucher sur « Démarrer » (obligatoire sur iPhone) */
+function unlockAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+  if (!T.ac) T.ac = new C();
+  if (T.ac.state === 'suspended') T.ac.resume();
+  const o = T.ac.createOscillator(), g = T.ac.createGain();
+  g.gain.value = 0.0001; o.connect(g); g.connect(T.ac.destination); o.start(); o.stop(T.ac.currentTime + 0.05);
+}
+function ring() {
+  if (!T.ac) return;
+  if (T.ac.state === 'suspended') T.ac.resume();
+  stopRing();
+  T.master = T.ac.createGain(); T.master.gain.value = 1; T.master.connect(T.ac.destination);
+  const t0 = T.ac.currentTime + 0.05;
+  for (let c = 0; c < 12; c++) for (let k = 0; k < 3; k++) {   // 12 salves de 3 bips, environ 18 s
+    const t = t0 + c * 1.5 + k * 0.22, o = T.ac.createOscillator(), g = T.ac.createGain();
+    o.type = 'sine'; o.frequency.value = k === 2 ? 1320 : 988;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g); g.connect(T.master); o.start(t); o.stop(t + 0.2);
+  }
+}
+function stopRing() { if (T.master) { try { T.master.disconnect(); } catch (e) {} T.master = null; } }
+async function wakeOn() { try { if ('wakeLock' in navigator && !T.wake) { T.wake = await navigator.wakeLock.request('screen'); T.wake.addEventListener('release', () => T.wake = null); } } catch (e) {} }
+function wakeOff() { if (T.wake) { T.wake.release().catch(() => {}); T.wake = null; } }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (T.ac && T.ac.state === 'suspended') T.ac.resume();
+  if (T.state === 'running') { wakeOn(); tick(); }
+});
+
+/* ---------- Démarrage ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { editProg = null; show(b.dataset.t); });
+render();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
