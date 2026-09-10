@@ -251,7 +251,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '19';
+const APP_VERSION = '20';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -734,7 +734,7 @@ function drawExec() {
   const pEntry = list.find(x => x.programId), prog = pEntry && db.programs.find(p => p.id === pEntry.programId);
   $('#exec').innerHTML = `
     <div class="extop"><button class="icon" aria-label="Quitter la séance (reprise possible)" onclick="closeExec()">✕</button>
-      <div class="exmid"><b>Exercice ${i + 1} sur ${n}</b>${prog ? `<span class="exprog">${h(prog.name)}</span>` : ''}</div><span id="exClock">${dur(Date.now() - db.exec.start)}</span></div>
+      <div class="exmid"><b>Exercice ${i + 1} sur ${n}</b>${prog ? `<span class="exprog">Programme : ${h(prog.name)}</span>` : ''}</div><span id="exClock">${dur(Date.now() - db.exec.start)}</span></div>
     <div class="exdots">${list.map((x, k) => `<i class="${k === i ? 'on' : x.log.every(st => st.s !== 'todo') ? 'done' : ''}" onclick="exGo(${k})" aria-label="Exercice ${k + 1}"></i>`).join('')}</div>
     <div class="exhead">
       ${lib ? `<img class="exthumb" src="${IMG}${lib}/0.jpg" alt="Photo du mouvement" onclick="libInfo('${lib}')" onerror="this.style.display='none'">` : tile(z, 'lg')}
