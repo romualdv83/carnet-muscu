@@ -107,6 +107,17 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .pill.on{background:var(--yellow);border-color:var(--yellow);color:#1c1f23}
 .photos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0 14px}
 .photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--field)}
+.pickbtn{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font-weight:500;min-width:0}
+.pickbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pickbtn.empty span{color:var(--mut)}
+.pickbtn i{font-style:normal;color:var(--mut);font-size:13px;flex:none}
+#pmodal{padding:0;align-items:stretch}
+#pmodal .sheet{max-width:680px;height:100%;border-radius:0;display:flex;flex-direction:column;text-align:left;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px);box-shadow:none}
+.phead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.phead h2{margin:0}
+.plist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.prow{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
+.psec{font:600 14px/1 var(--num);color:var(--mut);margin:16px 0 6px}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -140,6 +151,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 </nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="smodal" onclick="if(event.target===this)closeFinish()"><div class="sheet" id="ssheet" role="dialog" aria-label="Terminer la séance"></div></div>
+<div class="modal" id="pmodal"><div class="sheet" id="psheet" role="dialog" aria-label="Choisir un mouvement"></div></div>
 <div class="modal" id="lmodal" onclick="if(event.target===this)closeLib()"><div class="sheet" id="lsheet" role="dialog" aria-label="Mouvement"></div></div>
 <div class="modal" id="tmodal" onclick="if(event.target===this)closeTimer()"><div class="sheet" id="tsheet" role="dialog" aria-label="Minuteur"></div></div>
 
@@ -325,8 +337,8 @@ function vSeance(m) {
       <select style="flex:1" onchange="F.exerciseId=this.value;if(!mvFits(F.movementId,F.exerciseId))F.movementId='';render()">${opts('exercises', f.exerciseId)}</select>
       <button class="btn" aria-label="Nouvel exercice" onclick="quickAdd('exercises','exerciseId')">＋</button></div></div>
     <div class="field"><label>Mouvement</label><div class="with-add">
-      <select onchange="F.movementId=pickMv(this.value);autoEx();render()">${mvOpts(f.movementId, f.exerciseId)}</select>
-      ${curMvLib ? `<button class="btn" aria-label="Voir les photos du mouvement" onclick="libInfo('${curMvLib}')">?</button>` : ''}
+      <button class="btn pickbtn${f.movementId ? '' : ' empty'}" onclick="openPicker()"><span>${f.movementId ? h(nameOf('movements', f.movementId)) : 'Choisir un mouvement…'}</span><i>▼</i></button>
+      ${curMvLib && !curMvLib.startsWith('fr_') ? `<button class="btn" aria-label="Voir les photos du mouvement" onclick="libInfo('${curMvLib}')">📷</button>` : ''}
       <button class="btn" aria-label="Nouveau mouvement" onclick="quickAdd('movements','movementId')">＋</button></div></div>
     <div class="row three">
       <div><label>Répétitions</label><input inputmode="numeric" value="${h(f.reps)}" oninput="F.reps=this.value"></div>
@@ -828,12 +840,53 @@ function libInfo(k) {
   $('#lsheet').innerHTML = `<h2>${h(x[1])}</h2>
     <p class="muted" style="margin:4px 0 0">${ZONES[x[2]]}${plain(MU[x[4]]) !== plain(ZONES[x[2]]) ? ', ' + MU[x[4]] : ''}, ${EQ[x[3]]}</p>
     ${x[0].startsWith('fr_') ? '<p class="muted" style="margin:10px 0 14px">Pas de photo pour ce mouvement.</p>' : `<div class="photos"><img src="${IMG}${x[0]}/0.jpg" alt="Position de départ" onerror="imgErr(this)"><img src="${IMG}${x[0]}/1.jpg" alt="Position d’arrivée" onerror="imgErr(this)"></div>`}
-    ${isAdded(x) ? '<p class="muted" style="margin:0 0 10px">Déjà dans vos mouvements.</p>' : `<button class="btn pri full" onclick="addLib(${i})">Ajouter à mes mouvements</button>`}
+    ${pickOpen ? `<button class="btn pri full" onclick="choosePick('lib:${x[0]}')">Choisir ce mouvement</button>` : isAdded(x) ? '<p class="muted" style="margin:0 0 10px">Déjà dans vos mouvements.</p>' : `<button class="btn pri full" onclick="addLib(${i})">Ajouter à mes mouvements</button>`}
     <button class="btn ghost full gap" onclick="closeLib()">Fermer</button>`;
   $('#lmodal').classList.add('open');
 }
 function imgErr(el) { const p = el.closest('.photos'); if (p) p.innerHTML = '<p class="muted" style="grid-column:1/-1;margin:0">Photos indisponibles sans connexion internet.</p>'; }
 function closeLib() { $('#lmodal').classList.remove('open'); libCur = -1; }
+
+/* ---------- Liste des mouvements consultable depuis la séance ---------- */
+let pickOpen = false, PQ = '', PZ = '', PBW = db.pickBw !== false;
+function openPicker() {
+  const ex = db.exercises.find(x => x.id === F.exerciseId), z = ex ? zoneOfEx(ex) : '';
+  PZ = z === 'full' ? '' : z; PQ = ''; pickOpen = true;
+  $('#psheet').innerHTML = `<div class="phead"><h2>Choisir un mouvement</h2><button class="icon" aria-label="Fermer" onclick="closePicker()">✕</button></div>
+    <input type="search" placeholder="Rechercher : pompes, squat, gainage…" oninput="PQ=this.value;drawPicker()">
+    <div class="chips" style="margin:10px 0 8px"><button class="pill" id="pbw" onclick="PBW=!PBW;db.pickBw=PBW;save();drawPicker()">Poids du corps uniquement</button></div>
+    <div class="chips" id="pzones" style="margin-bottom:4px"></div>
+    <div class="plist" id="plist"></div>`;
+  $('#pmodal').classList.add('open'); drawPicker();
+}
+function closePicker() { $('#pmodal').classList.remove('open'); pickOpen = false; }
+function drawPicker() {
+  $('#pbw').classList.toggle('on', PBW);
+  $('#pzones').innerHTML = [['', 'Tous'], ...ZORDER.map(z => [z, ZONES[z]])]
+    .map(([z, l]) => `<button class="pill${PZ === z ? ' on' : ''}" onclick="PZ='${z}';drawPicker()">${l}</button>`).join('');
+  const q = plain(PQ).trim(), okQ = n => !q || plain(n).includes(q);
+  const libOf = m => m.lib ? LIB.find(x => x[0] === m.lib) : null;
+  const mine = [...db.movements].sort(byName).filter(m => (!PZ || mvZone(m) === PZ) && okQ(m.name));
+  const lib = LIB.filter(x => !isAdded(x) && (!PZ || x[2] === PZ) && (!PBW || x[3] === 2) && okQ(x[1]));
+  const row = (v, name, z, sub, libId) => `<div class="item"><div class="prow" onclick="choosePick('${v}')">${tile(z, 'sm')}
+      <div class="grow"><div class="t">${h(name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div></div>
+      ${libId && !libId.startsWith('fr_') ? `<button class="icon" aria-label="Voir les photos" onclick="libInfo('${libId}')">📷</button>` : ''}</div>`;
+  const max = 200;
+  let html = '';
+  if (mine.length) html += `<div class="psec">Mes mouvements (${mine.length})</div>` +
+    mine.map(m => { const x = libOf(m); return row(m.id, m.name, mvZone(m), x ? `${EQ[x[3]]}, ${MU[x[4]]}` : '', m.lib || ''); }).join('');
+  if (lib.length) html += `<div class="psec">Bibliothèque${PBW ? ', poids du corps' : ''} (${lib.length})</div>` +
+    lib.slice(0, max).map(x => row('lib:' + x[0], x[1], x[2], `${EQ[x[3]]}, ${MU[x[4]]}`, x[0])).join('') +
+    (lib.length > max ? `<div class="empty">Et ${lib.length - max} autres : précisez la recherche ou choisissez une partie du corps.</div>` : '');
+  $('#plist').innerHTML = html || '<div class="empty">Aucun mouvement ne correspond. Modifiez la recherche, ou fermez et touchez ＋ pour créer le vôtre.</div>';
+}
+function choosePick(v) {
+  const id = pickMv(v); if (!id) return;
+  F.movementId = id;
+  if (!mvFits(id, F.exerciseId)) F.exerciseId = '';
+  autoEx();
+  closeLib(); closePicker(); render();
+}
 
 /* ---------- Minuteur ---------- */
 const T = {min: db.timerMin || 2, total: 0, end: 0, left: 0, state: 'idle', iv: null, ac: null, master: null, wake: null};
