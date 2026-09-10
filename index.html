@@ -322,7 +322,7 @@ function vSeance(m) {
     </div>
     <div class="field"><label>Exercice</label><div class="with-add" style="align-items:center">
       ${tile(zoneFor(f.exerciseId, f.movementId), 'lg')}
-      <select style="flex:1" onchange="F.exerciseId=this.value;render()">${opts('exercises', f.exerciseId)}</select>
+      <select style="flex:1" onchange="F.exerciseId=this.value;if(!mvFits(F.movementId,F.exerciseId))F.movementId='';render()">${opts('exercises', f.exerciseId)}</select>
       <button class="btn" aria-label="Nouvel exercice" onclick="quickAdd('exercises','exerciseId')">＋</button></div></div>
     <div class="field"><label>Mouvement</label><div class="with-add">
       <select onchange="F.movementId=this.value;autoEx();render()">${mvOpts(f.movementId, f.exerciseId)}</select>
@@ -346,7 +346,9 @@ function quickAdd(list, field) {
   const name = (prompt(list === 'exercises' ? 'Nom du nouvel exercice :' : 'Nom du nouveau mouvement :') || '').trim();
   if (!name) return;
   if (db[list].some(x => x.name.toLowerCase() === name.toLowerCase())) { toast('Ce nom existe déjà', true); return; }
-  const it = {id: uid(), name}; db[list].push(it); save();
+  const it = {id: uid(), name};
+  if (list === 'movements') { const ex = db.exercises.find(x => x.id === F.exerciseId), z = ex ? zoneOfEx(ex) : ''; if (z && z !== 'full') it.zone = z; }
+  db[list].push(it); save();
   F[field] = it.id; render(); toast('Ajouté');
 }
 function saveEntry() {
@@ -597,7 +599,7 @@ function progEditor() {
   <div class="card"><h2>Mouvements du programme</h2>
     ${p.items.map((it, i) => `<div style="${i ? 'border-top:1px solid var(--line);padding-top:12px;margin-top:12px' : ''}">
       <div class="row">
-        <div><label>Exercice</label><select onchange="editProg.items[${i}].exerciseId=this.value;render()">${opts('exercises', it.exerciseId)}</select></div>
+        <div><label>Exercice</label><select onchange="const it=editProg.items[${i}];it.exerciseId=this.value;if(!mvFits(it.movementId,it.exerciseId))it.movementId='';render()">${opts('exercises', it.exerciseId)}</select></div>
         <div><label>Mouvement</label><select onchange="editProg.items[${i}].movementId=this.value">${mvOpts(it.movementId, it.exerciseId)}</select></div>
       </div>
       <div class="row three">
@@ -664,7 +666,7 @@ function listEditor(key, title, hint, extra) {
   const fold = key === 'movements' && list.length > 25;
   return `<div class="card"><h2>${title}</h2>${hint ? `<p class="muted" style="margin:-6px 0 8px">${hint}</p>` : ''}${extra || ''}
     ${fold ? `<details><summary class="btn sm" style="display:inline-flex;align-items:center;margin-bottom:8px">Afficher les ${list.length} mouvements</summary>` : ''}
-    ${list.map(x => `<div class="item">${key === 'exercises' ? tile(zoneOfEx(x)) : key === 'movements' ? tile(mvZone(x), 'sm') : ''}<div class="grow">${h(x.name)}${key === 'exercises' ? iconPicker(x) : ''}${key === 'fields' ? ` <span class="muted">(${x.type === 'number' ? 'nombre' : 'texte'})</span>` : ''}</div>
+    ${list.map(x => `<div class="item">${key === 'exercises' ? tile(zoneOfEx(x)) : key === 'movements' ? tile(mvZone(x), 'sm') : ''}<div class="grow">${h(x.name)}${key === 'exercises' ? iconPicker(x) : key === 'movements' ? mvZonePicker(x) : ''}${key === 'fields' ? ` <span class="muted">(${x.type === 'number' ? 'nombre' : 'texte'})</span>` : ''}</div>
       <button class="icon" aria-label="Renommer" onclick="renameItem('${key}','${x.id}')">✎</button>
       <button class="icon" aria-label="Supprimer" onclick="delItem('${key}','${x.id}')">🗑</button></div>`).join('') || '<div class="empty">Liste vide</div>'}${fold ? '</details>' : ''}
     <div class="with-add" style="margin-top:10px"><input id="add_${key}" placeholder="Nouveau nom">
@@ -740,11 +742,23 @@ function mvOpts(sel, exId) {
   const ex = db.exercises.find(x => x.id === exId), z = ex ? zoneOfEx(ex) : '';
   const all = [...db.movements].sort(byName);
   const o = x => `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`;
-  if (!z) return '<option value="">Choisir…</option>' + all.map(o).join('');
-  const mine = all.filter(x => mvZone(x) === z), rest = all.filter(x => mvZone(x) !== z);
-  return '<option value="">Choisir…</option>' + (mine.length ? `<optgroup label="${h(ex.name)}">${mine.map(o).join('')}</optgroup>` : '') +
-    (rest.length ? `<optgroup label="Autres mouvements">${rest.map(o).join('')}</optgroup>` : '');
+  if (!z || z === 'full') return '<option value="">Choisir…</option>' + all.map(o).join('');
+  const mine = all.filter(x => mvZone(x) === z || x.id === sel);
+  if (!mine.length) return `<option value="">Aucun mouvement pour ${h(ex.name)} : touchez ＋ ou ouvrez la bibliothèque</option>`;
+  return `<option value="">Choisir (${mine.length})…</option>` + mine.map(o).join('');
 }
+function mvFits(mvId, exId) {
+  const ex = db.exercises.find(x => x.id === exId), z = ex ? zoneOfEx(ex) : '';
+  const mv = db.movements.find(x => x.id === mvId);
+  return !mv || !z || z === 'full' || mvZone(mv) === z;
+}
+function mvZonePicker(x) {
+  const auto = detect(x.name, KW_MV);
+  return `<select style="margin-top:6px;min-height:36px;padding:6px 30px 6px 10px;font-size:14px" aria-label="Partie du corps" onchange="setMvZone('${x.id}',this.value)">
+    <option value="">${x.zone ? 'Choisir…' : `Auto (${h(ZONES[auto] || 'non classé')})`}</option>
+    ${Object.entries(ZONES).map(([k, v]) => `<option value="${k}"${x.zone === k ? ' selected' : ''}>${v}</option>`).join('')}</select>`;
+}
+function setMvZone(id, v) { const m = db.movements.find(x => x.id === id); if (!m) return; if (v) m.zone = v; else delete m.zone; save(); render(); }
 function autoEx() {
   if (F.exerciseId) return;
   const mv = db.movements.find(x => x.id === F.movementId); if (!mv) return;
