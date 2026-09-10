@@ -214,7 +214,10 @@ let db = null;
 try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
 if (!db || !Array.isArray(db.entries)) db = seed();
 if (!Array.isArray(db.sessions)) db.sessions = [];
-function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('Enregistrement impossible sur cet appareil', true); } }
+let USED = null;
+const used = () => USED || (USED = new Set([...db.entries.map(e => e.movementId), ...db.programs.flatMap(p => p.items.map(it => it.movementId))]));
+const isMine = m => !m.lib || m.u || used().has(m.id);
+function save() { USED = null; try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('Enregistrement impossible sur cet appareil', true); } }
 save();
 
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
@@ -783,7 +786,7 @@ function iconPicker(x) {
     <option value="none"${x.icon === 'none' ? ' selected' : ''}>Aucune</option></select>`;
 }
 function listEditor(key, title, hint, extra) {
-  const list = key === 'fields' ? db[key] : [...db[key]].sort(byName);
+  const list = key === 'fields' ? db[key] : [...db[key]].filter(x => key !== 'movements' || isMine(x)).sort(byName);
   const fold = key === 'movements' && list.length > 25;
   return `<div class="card"><h2>${title}</h2>${hint ? `<p class="muted" style="margin:-6px 0 8px">${hint}</p>` : ''}${extra || ''}
     ${fold ? `<details><summary class="btn sm" style="display:inline-flex;align-items:center;margin-bottom:8px">Afficher les ${list.length} mouvements</summary>` : ''}
@@ -866,8 +869,8 @@ function mvOpts(sel, exId) {
   const ex = db.exercises.find(x => x.id === exId), z = ex ? zoneOfEx(ex) : '';
   const all = [...db.movements].sort(byName);
   const o = x => `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`;
-  if (!z || z === 'full') return '<option value="">Choisir…</option>' + all.map(o).join('');
-  const mine = all.filter(x => mvZone(x) === z || x.id === sel);
+  if (!z || z === 'full') return '<option value="">Choisir…</option>' + all.filter(x => isMine(x) || x.id === sel).map(o).join('');
+  const mine = all.filter(x => (isMine(x) && mvZone(x) === z) || x.id === sel);
   const lib = LIB.filter(x => x[2] === z && !isAdded(x));
   const lo = x => `<option value="lib:${x[0]}">${h(x[1])}</option>`;
   const bw = lib.filter(x => x[3] === 2), gear = lib.filter(x => x[3] !== 2);
@@ -903,7 +906,8 @@ function autoEx() {
   const z = mvZone(mv), ex = z && db.exercises.find(x => zoneOfEx(x) === z);
   if (ex) F.exerciseId = ex.id;
 }
-const isAdded = x => db.movements.some(m => m.lib === x[0] || plain(m.name) === plain(x[1]));
+const libFind = x => db.movements.find(m => m.lib === x[0] || plain(m.name) === plain(x[1]));
+const isAdded = x => { const m = libFind(x); return !!m && isMine(m); };
 function openLibView() { libView = true; render(); window.scrollTo(0, 0); }
 function libHTML() {
   const pill = (z, label) => `<button class="pill${libZ === z ? ' on' : ''}" onclick="libZ='${z}';render()">${h(label)}</button>`;
@@ -936,14 +940,15 @@ function drawLib() {
 function libMove(x) { return {id: uid(), name: x[1], zone: x[2], lib: x[0]}; }
 function addLib(i) {
   const x = LIB[i]; if (isAdded(x)) return;
-  db.movements.push(libMove(x)); save(); drawLib();
+  const m = libFind(x); if (m) m.u = true; else db.movements.push(Object.assign(libMove(x), {u: true}));
+  save(); drawLib();
   if (libCur === i) libInfo(i);
   toast('Ajouté à vos mouvements');
 }
 function addAllLib() {
   const list = libFiltered().filter(([x]) => !isAdded(x));
   if (!confirm(`Ajouter ces ${list.length} mouvements à votre liste ?`)) return;
-  list.forEach(([x]) => db.movements.push(libMove(x))); save(); drawLib();
+  list.forEach(([x]) => { const m = libFind(x); if (m) m.u = true; else db.movements.push(Object.assign(libMove(x), {u: true})); }); save(); drawLib();
   toast(`${list.length} mouvements ajoutés`);
 }
 function libInfo(k) {
@@ -960,10 +965,10 @@ function imgErr(el) { const p = el.closest('.photos'); if (p) p.innerHTML = '<p 
 function closeLib() { $('#lmodal').classList.remove('open'); libCur = -1; }
 
 /* ---------- Liste des mouvements consultable depuis la séance ---------- */
-let pickOpen = false, PQ = '', PZ = '', PBW = db.pickBw !== false;
+let pickOpen = false, PQ = '', PZ = '', PALL = false, PBW = db.pickBw !== false;
 function openPicker() {
   const ex = db.exercises.find(x => x.id === F.exerciseId), z = ex ? zoneOfEx(ex) : '';
-  PZ = z === 'full' ? '' : z; PQ = ''; pickOpen = true;
+  PZ = z === 'full' ? '' : z; PQ = ''; PALL = false; pickOpen = true;
   $('#psheet').innerHTML = `<div class="phead"><h2>Choisir un mouvement</h2><button class="icon" aria-label="Fermer" onclick="closePicker()">✕</button></div>
     <input type="search" placeholder="Rechercher : pompes, squat, gainage…" oninput="PQ=this.value;drawPicker()">
     <div class="chips" style="margin:10px 0 8px"><button class="pill" id="pbw" onclick="PBW=!PBW;db.pickBw=PBW;save();drawPicker()">Poids du corps uniquement</button></div>
@@ -978,16 +983,19 @@ function drawPicker() {
     .map(([z, l]) => `<button class="pill${PZ === z ? ' on' : ''}" onclick="PZ='${z}';drawPicker()">${l}</button>`).join('');
   const q = plain(PQ).trim(), okQ = n => !q || plain(n).includes(q);
   const libOf = m => m.lib ? LIB.find(x => x[0] === m.lib) : null;
-  const mine = [...db.movements].sort(byName).filter(m => (!PZ || mvZone(m) === PZ) && okQ(m.name));
+  const mine = [...db.movements].sort(byName).filter(m => isMine(m) && (!PZ || mvZone(m) === PZ) && okQ(m.name));
+  const showLib = PALL || !!q;
   const lib = LIB.filter(x => !isAdded(x) && (!PZ || x[2] === PZ) && (!PBW || x[3] === 2) && okQ(x[1]));
   const row = (v, name, z, sub, libId) => `<div class="item"><div class="prow" onclick="choosePick('${v}')">${tile(z, 'sm')}
       <div class="grow"><div class="t">${h(name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div></div>
       ${libId && !libId.startsWith('fr_') ? `<button class="icon" aria-label="Voir les photos" onclick="libInfo('${libId}')">📷</button>` : ''}</div>`;
   const max = 200;
   let html = '';
-  if (mine.length) html += `<div class="psec">Mes mouvements (${mine.length})</div>` +
-    mine.map(m => { const x = libOf(m); return row(m.id, m.name, mvZone(m), x ? `${EQ[x[3]]}, ${MU[x[4]]}` : '', m.lib || ''); }).join('');
-  if (lib.length) html += `<div class="psec">Bibliothèque${PBW ? ', poids du corps' : ''} (${lib.length})</div>` +
+  html += `<div class="psec">Mes mouvements enregistrés (${mine.length})</div>` + (mine.length
+    ? mine.map(m => { const x = libOf(m); return row(m.id, m.name, mvZone(m), x ? `${EQ[x[3]]}, ${MU[x[4]]}` : '', m.lib || ''); }).join('')
+    : `<div class="empty">Aucun mouvement enregistré${PZ ? ' pour « ' + ZONES[PZ] + ' »' : ''}${q ? ' avec cette recherche' : ''}.</div>`);
+  if (!showLib) html += lib.length ? `<button class="btn full" style="margin-top:12px" onclick="PALL=true;drawPicker()">Parcourir la bibliothèque (${lib.length} mouvements)</button>` : '';
+  else if (lib.length) html += `<div class="psec">Bibliothèque${PBW ? ', poids du corps' : ''} (${lib.length})</div>` +
     lib.slice(0, max).map(x => row('lib:' + x[0], x[1], x[2], `${EQ[x[3]]}, ${MU[x[4]]}`, x[0])).join('') +
     (lib.length > max ? `<div class="empty">Et ${lib.length - max} autres : précisez la recherche ou choisissez une partie du corps.</div>` : '');
   $('#plist').innerHTML = html || '<div class="empty">Aucun mouvement ne correspond. Modifiez la recherche, ou fermez et touchez ＋ pour créer le vôtre.</div>';
