@@ -136,6 +136,8 @@ textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
 #exec.open{display:flex}
 .extop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .extop b{font:700 17px var(--num)}
+.exmid{display:flex;flex-direction:column;align-items:center;min-width:0}
+.exprog{font-size:12px;color:var(--mut);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #exClock{font:600 15px var(--num);font-variant-numeric:tabular-nums;min-width:60px;text-align:right;color:var(--mut)}
 .exdots{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin:8px 0 20px}
 .exdots i{width:12px;height:12px;border-radius:50%;background:var(--line);cursor:pointer}
@@ -249,7 +251,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '18';
+const APP_VERSION = '19';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -729,9 +731,10 @@ function drawExec() {
     const sub = st.s === 'todo' ? 'rép.' + (num(st.w) ? ', ' + fmt(num(st.w)) + ' kg' : '') : (num(st.w) ? fmt(num(st.w)) + ' kg' : '');
     return `<button class="extile ${cls}" onclick="exTap('${e.id}',${k})"><small>Série ${k + 1}</small>${big}${sub ? `<small>${sub}</small>` : ''}</button>`;
   }).join('');
+  const pEntry = list.find(x => x.programId), prog = pEntry && db.programs.find(p => p.id === pEntry.programId);
   $('#exec').innerHTML = `
     <div class="extop"><button class="icon" aria-label="Quitter la séance (reprise possible)" onclick="closeExec()">✕</button>
-      <b>Exercice ${i + 1} sur ${n}</b><span id="exClock">${dur(Date.now() - db.exec.start)}</span></div>
+      <div class="exmid"><b>Exercice ${i + 1} sur ${n}</b>${prog ? `<span class="exprog">${h(prog.name)}</span>` : ''}</div><span id="exClock">${dur(Date.now() - db.exec.start)}</span></div>
     <div class="exdots">${list.map((x, k) => `<i class="${k === i ? 'on' : x.log.every(st => st.s !== 'todo') ? 'done' : ''}" onclick="exGo(${k})" aria-label="Exercice ${k + 1}"></i>`).join('')}</div>
     <div class="exhead">
       ${lib ? `<img class="exthumb" src="${IMG}${lib}/0.jpg" alt="Photo du mouvement" onclick="libInfo('${lib}')" onerror="this.style.display='none'">` : tile(z, 'lg')}
