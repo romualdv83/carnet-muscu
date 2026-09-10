@@ -118,6 +118,19 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 .plist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .prow{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
 .psec{font:600 14px/1 var(--num);color:var(--mut);margin:16px 0 6px}
+.sets{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.set{font:600 13px/1 var(--num);padding:5px 8px;border-radius:8px;background:var(--field);color:var(--mut)}
+.set.ok{background:rgba(63,185,113,.18);color:var(--green)}
+.set.part{background:rgba(245,197,66,.18);color:var(--yellow)}
+.set.skip{text-decoration:line-through}
+.live{box-shadow:inset 0 0 0 2px var(--yellow)}
+.livehead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.livehead .t{font:700 18px/1.2 var(--num)}
+.setrow{display:flex;align-items:center;gap:6px;padding:9px 0;border-top:1px solid var(--line)}
+.setrow.next{background:rgba(245,197,66,.07);margin:0 -14px;padding:9px 14px}
+.setrow .w{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.repgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 14px}
+.repgrid .btn{padding:0;min-height:48px;font:700 18px var(--num)}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tbtn{display:flex;align-items:center;gap:6px;background:var(--field);border:0;color:var(--txt);border-radius:22px;padding:8px 12px;min-height:42px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
 .tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -152,6 +165,7 @@ textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
 <div class="toast" id="toast"></div>
 <div class="modal" id="smodal" onclick="if(event.target===this)closeFinish()"><div class="sheet" id="ssheet" role="dialog" aria-label="Terminer la séance"></div></div>
 <div class="modal" id="pmodal"><div class="sheet" id="psheet" role="dialog" aria-label="Choisir un mouvement"></div></div>
+<div class="modal" id="rmodal" onclick="if(event.target===this)closeRep()"><div class="sheet" id="rsheet" role="dialog" aria-label="Répétitions réussies"></div></div>
 <div class="modal" id="lmodal" onclick="if(event.target===this)closeLib()"><div class="sheet" id="lsheet" role="dialog" aria-label="Mouvement"></div></div>
 <div class="modal" id="tmodal" onclick="if(event.target===this)closeTimer()"><div class="sheet" id="tsheet" role="dialog" aria-label="Minuteur"></div></div>
 
@@ -209,7 +223,10 @@ const nameOf = (list, id, fallback) => findName(list, id) || fallback || '—';
 
 function totals(es) {
   const t = {ex: es.length, sets: 0, reps: 0, ton: 0};
-  for (const e of es) { const s = num(e.sets), r = num(e.reps); t.sets += s; t.reps += s * r; t.ton += s * r * num(e.weight); }
+  for (const e of es) {
+    if (e.log) { for (const st of e.log) if ((st.s === 'ok' || st.s === 'part') && num(st.d) > 0) { t.sets++; t.reps += num(st.d); t.ton += num(st.d) * num(st.w); } continue; }
+    const s = num(e.sets), r = num(e.reps); t.sets += s; t.reps += s * r; t.ton += s * r * num(e.weight);
+  }
   return t;
 }
 function statBoxes(t) {
@@ -297,10 +314,17 @@ function render() {
 function entryRow(e) {
   const extra = db.fields.filter(f => e.custom && e.custom[f.id] !== undefined && e.custom[f.id] !== '')
     .map(f => `${h(f.name)} : ${h(e.custom[f.id])}`).join(', ');
-  const w = num(e.weight) ? `, ${fmt(num(e.weight))} kg` : '';
+  let w = num(e.weight) ? `, ${fmt(num(e.weight))} kg` : '', detail = `, ${num(e.sets)} × ${num(e.reps)} rép.`, chips = '';
+  if (e.log) {
+    const ws = e.log.map(st => num(st.w)), lo = Math.min(...ws), hi = Math.max(...ws);
+    w = hi ? `, ${lo === hi ? fmt(hi) : fmt(lo) + ' à ' + fmt(hi)} kg` : '';
+    detail = '';
+    chips = `<div class="sets">${e.log.map(st => st.s === 'ok' ? `<span class="set ok">✓ ${st.d}</span>` : st.s === 'part' ? `<span class="set part">${st.d}/${st.t || '?'}</span>`
+      : st.s === 'skip' ? `<span class="set skip">${st.t || '–'}</span>` : `<span class="set">${st.t || '…'} à faire</span>`).join('')}</div>`;
+  }
   return `<div class="item">${tile(zoneFor(e.exerciseId, e.movementId, e.exName, e.mvName))}<div class="grow">
       <div class="t">${h(nameOf('movements', e.movementId, e.mvName))}</div>
-      <div class="s">${e.time ? `<span style="color:var(--txt);margin-right:6px">${h(e.time)}</span>` : ''}${h(nameOf('exercises', e.exerciseId, e.exName))}, ${num(e.sets)} × ${num(e.reps)} rép.${w}${extra ? '<br>' + extra : ''}</div>
+      <div class="s">${e.time ? `<span style="color:var(--txt);margin-right:6px">${h(e.time)}</span>` : ''}${h(nameOf('exercises', e.exerciseId, e.exName))}${detail}${w}${extra ? '<br>' + extra : ''}</div>${chips}
     </div>
     <button class="icon" aria-label="Modifier" onclick="editEntry('${e.id}')">✎</button>
     <button class="icon" aria-label="Supprimer" onclick="delEntry('${e.id}')">🗑</button></div>`;
@@ -326,8 +350,9 @@ function vSeance(m) {
     </div>`;
   }
 
-  m.innerHTML = progHTML + `
-  <div class="card" id="formcard"><h2>${editId ? 'Modifier la saisie' : 'Nouvelle saisie'}</h2>
+  const live = day.filter(e => e.log && e.log.some(st => st.s === 'todo'));
+  m.innerHTML = live.map(liveCard).join('') + progHTML + `
+  <div class="card" id="formcard"><h2>${editId ? 'Modifier la saisie' : live.length ? 'Exercice suivant' : 'Nouvel exercice'}</h2>
     <div class="row">
       <div><label>Date</label><input type="date" value="${f.date}" onchange="F.date=this.value||todayStr();render()"></div>
       <div><label>Heure</label><input type="time" value="${f.time}" oninput="F.time=this.value"></div>
@@ -347,7 +372,7 @@ function vSeance(m) {
     </div>
     ${db.fields.map(fd => `<div class="field"><label>${h(fd.name)}</label>
       <input ${fd.type === 'number' ? 'inputmode="decimal"' : ''} value="${h(f.custom[fd.id] ?? '')}" oninput="F.custom['${fd.id}']=this.value"></div>`).join('')}
-    <button class="btn pri full" onclick="saveEntry()">${editId ? 'Enregistrer les modifications' : 'Enregistrer'}</button>
+    <button class="btn pri full" onclick="saveEntry()">${editId ? 'Enregistrer les modifications' : 'Commencer l’exercice'}</button>
     ${editId ? '<button class="btn ghost full gap" onclick="cancelEdit()">Annuler</button>' : ''}
   </div>
   <div class="card"><h2>${isToday ? 'Totaux du jour' : 'Totaux du ' + h(frShort(f.date))}</h2>${statBoxes(totals(day))}${perExerciseTable(day)}</div>
@@ -374,12 +399,23 @@ function saveEntry() {
     reps: f.reps, sets: f.sets, weight: f.weight, custom: {...f.custom},
     programId: wasEdit ? (db.entries.find(x => x.id === editId) || {}).programId || null : (curProg || null)
   };
+  const old = wasEdit ? db.entries.find(x => x.id === editId) : null;
+  const n = Math.max(1, Math.round(num(f.sets)) || 1), tr = Math.round(num(f.reps));
+  if (!old) e.log = Array.from({length: n}, () => ({t: tr, w: f.weight, s: 'todo', d: null}));
+  else if (old.log) {
+    e.log = old.log.map(st => st.s === 'todo' ? Object.assign({}, st, {t: tr, w: f.weight}) : st);
+    while (e.log.length < n) e.log.push({t: tr, w: f.weight, s: 'todo', d: null});
+    while (e.log.length > n && e.log[e.log.length - 1].s === 'todo') e.log.pop();
+    e.sets = e.log.length;
+  }
+  if (!e.log) e.sets = f.sets; else if (!old) e.sets = n;
   if (wasEdit) db.entries[db.entries.findIndex(x => x.id === editId)] = e; else db.entries.push(e);
   save();
   editId = null;
   const keep = {date: e.date, exerciseId: e.exerciseId, movementId: e.movementId};
   F = Object.assign(newForm(), keep);
-  render(); toast(wasEdit ? 'Modifications enregistrées' : 'Enregistré');
+  render(); if (!wasEdit) window.scrollTo(0, 0);
+  toast(wasEdit ? 'Modifications enregistrées' : 'C’est parti : validez chaque série');
 }
 function editEntry(id) {
   const e = db.entries.find(x => x.id === id); if (!e) return;
@@ -445,6 +481,7 @@ function saveFinish() {
   const ses = sessionOf(S.date), wasNew = !ses;
   const data = {date: S.date, rating: S.rating, comment: (S.comment || '').trim(), time: ses ? ses.time : nowTime(), programId: ses ? ses.programId : (curProg || null)};
   if (ses) Object.assign(ses, data); else db.sessions.push(Object.assign({id: uid()}, data));
+  db.entries.filter(e => e.date === S.date && e.log).forEach(e => e.log.forEach(st => { if (st.s === 'todo') st.s = 'skip'; }));
   save(); closeFinish();
   if (wasNew) curProg = '';
   render(); toast(wasNew ? 'Séance terminée, bravo !' : 'Bilan modifié');
@@ -452,6 +489,78 @@ function saveFinish() {
 function delFinish() {
   if (!confirm('Supprimer le bilan de cette séance ? Les saisies sont conservées.')) return;
   db.sessions = db.sessions.filter(s => s.date !== S.date); save(); closeFinish(); render(); toast('Bilan supprimé');
+}
+
+/* ---------- Suivi série par série ---------- */
+const entryMaxW = e => e.log ? Math.max(0, ...e.log.filter(st => (st.s === 'ok' || st.s === 'part') && num(st.d) > 0).map(st => num(st.w))) : num(e.weight);
+const entryById = id => db.entries.find(x => x.id === id);
+function liveCard(e) {
+  const n = e.log.length, next = e.log.findIndex(st => st.s === 'todo');
+  return `<div class="card live"><div class="livehead">${tile(zoneFor(e.exerciseId, e.movementId, e.exName, e.mvName), 'sm')}
+      <div class="grow"><div class="t">${h(nameOf('movements', e.movementId, e.mvName))}</div><div class="s">En cours, série ${next + 1} sur ${n}</div></div></div>
+    ${e.log.map((st, k) => setRow(e, st, k, k === next)).join('')}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn sm" onclick="addSet('${e.id}')">＋ Série</button>
+      <button class="btn sm" onclick="validateAll('${e.id}')">Tout valider</button>
+      <button class="btn sm danger" onclick="endLive('${e.id}')">Arrêter l’exercice</button></div></div>`;
+}
+function setRow(e, st, k, isNext) {
+  const w = num(st.w) ? `${fmt(num(st.w))} kg` : 'sans charge';
+  const head = `<div class="grow"><div class="t">Série ${k + 1}</div>`;
+  if (st.s === 'todo') return `<div class="setrow${isNext ? ' next' : ''}">${head}
+      <div class="s">${st.t ? st.t + ' rép.' : 'rép. libres'}, <span class="w" onclick="setWeight('${e.id}',${k})">${w}</span></div></div>
+      <button class="btn sm pri" onclick="setOk('${e.id}',${k})">✓ Réussie</button>
+      <button class="btn sm" onclick="setPart('${e.id}',${k})">Partielle</button></div>`;
+  const res = st.s === 'ok' ? `<span class="set ok">✓ ${st.d} rép.</span>` : st.s === 'part' ? `<span class="set part">${st.d} / ${st.t || '?'} rép.</span>` : '<span class="set skip">non faite</span>';
+  return `<div class="setrow">${head}<div class="s">${w}</div></div>${res}
+    <button class="icon" aria-label="Annuler la validation" onclick="setUndo('${e.id}',${k})">↺</button></div>`;
+}
+function afterSet(e) {
+  save();
+  if (!e.log.some(st => st.s === 'todo')) toast('Exercice terminé, bravo !');
+  else if (db.autoRest) { resetTimer(); startTimer(); }
+  render();
+}
+function setOk(id, k) {
+  const e = entryById(id), st = e.log[k];
+  if (!st.t) { setPart(id, k); return; }
+  st.s = 'ok'; st.d = st.t; afterSet(e);
+}
+function setPart(id, k) {
+  const e = entryById(id), st = e.log[k], t = num(st.t);
+  const grid = t > 0 && t <= 40
+    ? `<div class="repgrid">${Array.from({length: t}, (_, i) => `<button class="btn" onclick="setReps('${id}',${k},${i})">${i}</button>`).join('')}</div>`
+    : `<input id="repin" inputmode="numeric" placeholder="Nombre de répétitions" style="margin:8px 0 12px"><button class="btn pri full" onclick="setReps('${id}',${k},num($('#repin').value))">Valider</button>`;
+  $('#rsheet').innerHTML = `<h2>Série ${k + 1} : répétitions réussies</h2>
+    <p class="muted" style="margin:2px 0 0">${t ? 'Objectif : ' + t + ' répétitions' : 'Indiquez le nombre réalisé'}</p>${grid}
+    <button class="btn ghost full gap" onclick="closeRep()">Annuler</button>`;
+  $('#rmodal').classList.add('open');
+}
+function setReps(id, k, n) {
+  const e = entryById(id), st = e.log[k]; n = Math.max(0, Math.round(n));
+  st.d = n; st.s = st.t && n >= st.t ? 'ok' : 'part';
+  closeRep(); afterSet(e);
+}
+function closeRep() { $('#rmodal').classList.remove('open'); }
+function setUndo(id, k) { const e = entryById(id); Object.assign(e.log[k], {s: 'todo', d: null}); save(); render(); }
+function setWeight(id, k) {
+  const e = entryById(id), v = prompt('Charge pour cette série et les suivantes (kg) :', e.log[k].w || '');
+  if (v === null) return;
+  e.log.forEach((st, i) => { if (i >= k && st.s === 'todo') st.w = v.replace(',', '.').trim(); });
+  save(); render();
+}
+function addSet(id) {
+  const e = entryById(id), last = e.log[e.log.length - 1] || {t: num(e.reps), w: e.weight};
+  e.log.push({t: last.t, w: last.w, s: 'todo', d: null}); e.sets = e.log.length; save(); render();
+}
+function validateAll(id) {
+  const e = entryById(id);
+  e.log.forEach(st => { if (st.s === 'todo') { st.d = num(st.t); st.s = st.t ? 'ok' : 'skip'; } });
+  afterSet(e);
+}
+function endLive(id) {
+  if (!confirm('Arrêter cet exercice ? Les séries restantes seront notées comme non faites.')) return;
+  const e = entryById(id); e.log.forEach(st => { if (st.s === 'todo') st.s = 'skip'; }); save(); render();
 }
 
 /* ---------- Historique ---------- */
@@ -561,9 +670,9 @@ function vStats(m) {
     st.mv = last ? last.movementId : (mvs[0] || {}).id || '';
   }
   const pe = db.entries.filter(e => e.movementId === st.mv), byDay = {};
-  pe.forEach(e => { byDay[e.date] = Math.max(byDay[e.date] || 0, num(e.weight)); });
+  pe.forEach(e => { byDay[e.date] = Math.max(byDay[e.date] || 0, entryMaxW(e)); });
   const pdata = Object.keys(byDay).sort().slice(-20).map(k => ({l: label(k, 'day'), v: byDay[k]}));
-  const rec = pe.length ? Math.max(...pe.map(e => num(e.weight))) : 0;
+  const rec = pe.length ? Math.max(...pe.map(entryMaxW)) : 0;
   const perLabel = {day: 'séance', week: 'semaine', month: 'mois'}[st.group];
 
   m.innerHTML = `<div class="card"><h2>Évolution dans le temps</h2>
@@ -690,7 +799,10 @@ function vSettings(m) {
   m.innerHTML = listEditor('exercises', 'Exercices', 'L’icône de la partie du corps est choisie automatiquement d’après le nom. Vous pouvez la changer avec le menu sous chaque exercice.') +
     listEditor('movements', 'Mouvements', '', `<button class="btn pri full" style="margin-bottom:10px" onclick="openLibView()">Parcourir la bibliothèque (${LIB.length} mouvements)</button>`) +
     listEditor('fields', 'Rubriques personnalisées', 'Champs supplémentaires ajoutés au formulaire de saisie, par exemple « Temps de repos », « Ressenti » ou « Commentaire ». Les rubriques de type nombre apparaissent aussi dans les statistiques.') +
-    `<div class="card"><h2>Sauvegarde</h2>
+    `<div class="card"><h2>Repos entre les séries</h2>
+      <p class="muted" style="margin:-6px 0 10px">Lance le minuteur dès qu’une série est validée, avec la durée réglée dans le minuteur (${T.min} min).</p>
+      <button class="pill${db.autoRest ? ' on' : ''}" onclick="db.autoRest=!db.autoRest;save();render()">${db.autoRest ? 'Repos automatique activé' : 'Repos automatique désactivé'}</button></div>
+    <div class="card"><h2>Sauvegarde</h2>
       <p class="muted" style="margin-top:-6px">Vos données restent sur cet iPhone. Exportez-les régulièrement dans Fichiers ou iCloud Drive pour ne rien perdre.</p>
       <button class="btn full" onclick="exportJSON()">Exporter mes données</button>
       <label class="btn full gap" style="display:flex;align-items:center;justify-content:center;color:var(--txt);font-size:15px;margin-top:8px">Importer une sauvegarde
