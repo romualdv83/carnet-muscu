@@ -234,6 +234,7 @@ textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
 <div class="modal" id="rmodal" onclick="if(event.target===this)closeRep()"><div class="sheet" id="rsheet" role="dialog" aria-label="Répétitions réussies"></div></div>
 <div class="modal" id="lmodal" onclick="if(event.target===this)closeLib()"><div class="sheet" id="lsheet" role="dialog" aria-label="Mouvement"></div></div>
 <div class="modal" id="tmodal" onclick="if(event.target===this)closeTimer()"><div class="sheet" id="tsheet" role="dialog" aria-label="Minuteur"></div></div>
+<div class="modal" id="qmodal" onclick="if(event.target===this){this.classList.remove('open');checkBackupReminder()}"><div class="sheet" id="qsheet" role="dialog" aria-label="Qui s’entraîne aujourd’hui ?"></div></div>
 
 <script>
 /* ---------- Outils ---------- */
@@ -267,7 +268,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '33';
+const APP_VERSION = '34';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -277,14 +278,36 @@ function seed() {
     fields: [], entries: [], programs: [], sessions: []
   };
 }
+/* ---------- Profils : un suivi par personne, sans compte ---------- */
+const PKEY = 'forenix-muscu-profils';
+let PMETA = null, PID = null;
+try { PMETA = JSON.parse(localStorage.getItem(PKEY)); } catch (e) {}
+if (!PMETA || !Array.isArray(PMETA.list) || !PMETA.list.length) {
+  const first = {id: uid(), name: 'Moi'};
+  PMETA = {list: [first], def: first.id};
+  // migration : les données déjà présentes deviennent celles du premier profil
+  const old = localStorage.getItem(KEY);
+  if (old !== null) { localStorage.setItem(KEY + ':' + first.id, old); localStorage.removeItem(KEY); }
+  localStorage.setItem(PKEY, JSON.stringify(PMETA));
+}
+const pSave = () => localStorage.setItem(PKEY, JSON.stringify(PMETA));
+const pName = () => (PMETA.list.find(p => p.id === PID) || {}).name || '';
+const dKey = () => KEY + ':' + PID;
 let db = null;
-try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-if (!db || !Array.isArray(db.entries)) db = seed();
+function loadProfile(id) {
+  PID = id; db = null;
+  try { db = JSON.parse(localStorage.getItem(dKey())); } catch (e) {}
+  if (!db || !Array.isArray(db.entries)) db = seed();
+  // T et PBW n'existent pas encore au premier chargement du script
+  try { T.min = db.timerMin || 2; } catch (e) {}
+  try { PBW = db.pickBw !== false; } catch (e) {}
+}
+loadProfile(PMETA.list.some(p => p.id === PMETA.def) ? PMETA.def : PMETA.list[0].id);
 if (!Array.isArray(db.sessions)) db.sessions = [];
 let USED = null;
 const used = () => USED || (USED = new Set([...db.entries.map(e => e.movementId), ...db.programs.flatMap(p => p.items.map(it => it.movementId))]));
 const isMine = m => !m.lib || m.u || used().has(m.id);
-function save() { USED = null; try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('Enregistrement impossible sur cet appareil', true); } if (typeof scheduleAutoBackup === 'function') scheduleAutoBackup(); }
+function save() { USED = null; try { localStorage.setItem(dKey(), JSON.stringify(db)); } catch (e) { toast('Enregistrement impossible sur cet appareil', true); } if (typeof scheduleAutoBackup === 'function') scheduleAutoBackup(); }
 save();
 
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
@@ -1061,6 +1084,15 @@ function vSettings(m) {
       <p class="muted" style="margin:-6px 0 8px">Lancés automatiquement pendant la séance. Choisissez « Aucun » pour ne pas lancer de minuteur.</p>
       <div class="item"><div class="grow"><div class="t">Entre les séries</div><div class="s">Même exercice, même matériel</div></div><button class="btn sm" onclick="restDefaults('set')">${fmtRest(restSet())}</button></div>
       <div class="item"><div class="grow"><div class="t">Entre les exercices</div><div class="s">Mise en place du matériel comprise</div></div><button class="btn sm" onclick="restDefaults('ex')">${fmtRest(restEx())}</button></div></div>
+    <div class="card"><h2>Profil</h2>
+      <p class="muted" style="margin-top:-6px">Profil en cours : <b>${h(pName())}</b>.${PMETA.list.length > 1 ? ' À l’ouverture, l’application demande qui s’entraîne.' : ' Créez un second profil pour partager l’appareil : chacun son suivi.'}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${PMETA.list.length > 1 ? `<button class="btn sm" onclick="openWho()">Changer de profil</button>` : ''}
+        <button class="btn sm" onclick="newProfile()">Nouveau profil</button>
+        <button class="btn sm" onclick="renameProfile()">Renommer</button>
+        ${PMETA.def !== PID ? `<button class="btn sm" onclick="PMETA.def=PID;pSave();render()">Proposer à l’ouverture</button>` : ''}
+        ${PMETA.list.length > 1 ? `<button class="btn sm danger" onclick="delProfile()">Supprimer</button>` : ''}
+      </div></div>
     <div class="card"><h2>Sauvegarde</h2>
       <p class="muted" style="margin-top:-6px">Vos données restent sur cet appareil. ${db.backupLast ? 'Dernière sauvegarde : ' + frDate(new Date(db.backupLast).toISOString().slice(0, 10)) + '.' : 'Aucune sauvegarde pour l’instant.'}</p>
       <div class="field"><label>Nom du fichier de sauvegarde</label>
@@ -1109,13 +1141,46 @@ function delItem(key, id) {
   db[key] = db[key].filter(x => x.id !== id); save(); render(); toast('Supprimé');
 }
 /* Nom de fichier choisi par l'utilisateur, nettoyé des caractères interdits dans un nom */
-const bkName = () => ((db.backupName || '').replace(/[\\/:*?"<>|]/g, '').trim() || 'muscu-sauvegarde');
+const bkName = () => ((db.backupName || '').replace(/[\\/:*?"<>|]/g, '').trim() || ('muscu-' + (plain(pName()).replace(/\s+/g, '-') || 'sauvegarde')));
 function exportJSON() {
   download(bkName() + '-' + todayStr() + '.json', JSON.stringify(db, null, 1), 'application/json');
   db.backupLast = Date.now(); save();
   const b = $('#bkban'); if (b) b.hidden = true;
 }
 function bkNow() { exportJSON(); if (tab === 'reglages') render(); }
+
+/* ---------- Fenêtre « Qui s'entraîne aujourd'hui ? » et gestion des profils ---------- */
+function openWho() {
+  $('#qsheet').innerHTML = `<h2>Qui s’entraîne aujourd’hui ?</h2>
+    <div style="margin:12px 0 4px">${PMETA.list.map(p => `<button class="btn full${p.id === PMETA.def ? ' pri' : ''}" style="margin-bottom:8px" onclick="pickWho('${p.id}')">${h(p.name)}</button>`).join('')}</div>
+    <button class="btn ghost full" onclick="newProfile()">＋ Nouveau profil</button>`;
+  $('#qmodal').classList.add('open');
+}
+function pickWho(id) { switchProfile(id); $('#qmodal').classList.remove('open'); checkBackupReminder(); }
+function switchProfile(id) {
+  loadProfile(id);
+  F = newForm(); curProg = ''; editId = null; editProg = null; libView = false;
+  show('seance');
+}
+function newProfile() {
+  const name = (prompt('Prénom du nouveau profil :') || '').trim(); if (!name) return;
+  if (PMETA.list.some(p => plain(p.name) === plain(name))) { toast('Ce profil existe déjà', true); return; }
+  const p = {id: uid(), name}; PMETA.list.push(p); pSave(); pickWho(p.id); toast('Profil créé');
+}
+function renameProfile() {
+  const p = PMETA.list.find(x => x.id === PID);
+  const name = (prompt('Nouveau nom du profil :', p.name) || '').trim();
+  if (!name || name === p.name) return;
+  p.name = name; pSave(); render(); toast('Profil renommé');
+}
+function delProfile() {
+  const p = PMETA.list.find(x => x.id === PID);
+  if (!confirm(`Supprimer le profil « ${p.name} » ?\n\nSes ${db.entries.length} saisie(s), ses programmes et ses réglages seront définitivement supprimés de cet appareil.`)) return;
+  localStorage.removeItem(dKey()); idbDel('dir:' + PID);
+  PMETA.list = PMETA.list.filter(x => x.id !== PID);
+  if (!PMETA.list.some(x => x.id === PMETA.def)) PMETA.def = PMETA.list[0].id;
+  pSave(); switchProfile(PMETA.def); toast('Profil supprimé');
+}
 
 /* ---------- Rappel de sauvegarde (avec demande, jamais imposé) ---------- */
 const bkFreq = () => db.backupFreq === undefined ? 7 : db.backupFreq;
@@ -1140,7 +1205,7 @@ let bkTimer = null;
 function scheduleAutoBackup() { if (!db.backupDirName || !FSA) return; clearTimeout(bkTimer); bkTimer = setTimeout(() => writeAutoBackup(false), 2000); }
 async function writeAutoBackup(interactive) {
   try {
-    const h = await idbGet('dir'); if (!h) return;
+    const h = await idbGet('dir:' + PID); if (!h) return;
     let p = await h.queryPermission({mode: 'readwrite'});
     if (p !== 'granted') {
       if (!interactive) return; // la ré-autorisation exige un geste : bouton « Sauvegarder maintenant »
@@ -1149,19 +1214,19 @@ async function writeAutoBackup(interactive) {
     const f = await h.getFileHandle(bkName() + '.json', {create: true});
     const w = await f.createWritable(); await w.write(JSON.stringify(db, null, 1)); await w.close();
     // écrire la date sans repasser par save(), qui replanifierait une écriture
-    db.backupLast = Date.now(); localStorage.setItem(KEY, JSON.stringify(db));
+    db.backupLast = Date.now(); localStorage.setItem(dKey(), JSON.stringify(db));
     if (interactive) { toast('Sauvegarde écrite dans « ' + h.name + ' »'); render(); }
   } catch (e) { if (interactive) toast('Écriture impossible dans le dossier choisi', true); }
 }
 async function chooseBackupDir() {
   try {
     const h = await showDirectoryPicker({mode: 'readwrite'});
-    await idbSet('dir', h); db.backupDirName = h.name; save();
+    await idbSet('dir:' + PID, h); db.backupDirName = h.name; save();
     await writeAutoBackup(true); render();
   } catch (e) { /* choix annulé */ }
 }
 async function stopBackupDir() {
-  await idbDel('dir'); delete db.backupDirName; save(); render(); toast('Sauvegarde automatique désactivée');
+  await idbDel('dir:' + PID); delete db.backupDirName; save(); render(); toast('Sauvegarde automatique désactivée');
 }
 function importJSON(file) {
   if (!file) return;
@@ -1441,7 +1506,7 @@ if (location.protocol === 'https:') {
 /* ---------- Démarrage ---------- */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => { editProg = null; libView = false; show(b.dataset.t); });
 render();
-checkBackupReminder();
+if (PMETA.list.length > 1) openWho(); else checkBackupReminder();
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(r => r.update()).catch(() => {});
   let swReloaded = false;
