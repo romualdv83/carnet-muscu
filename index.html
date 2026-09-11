@@ -23,7 +23,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 12px) 20px 12px;border-bottom:1px solid var(--line)}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 24px) 20px 12px;border-bottom:1px solid var(--line)}
 header h1{margin:0;font:600 22px/1.15 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;letter-spacing:-.01em}
 header p{margin:2px 0 0;color:var(--mut);font-size:13px}
 main{padding:16px 16px calc(96px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto;position:relative;z-index:1}
@@ -261,7 +261,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '26';
+const APP_VERSION = '27';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
