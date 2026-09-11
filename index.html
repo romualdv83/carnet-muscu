@@ -27,10 +27,14 @@ header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop
 header h1{margin:0;font:600 22px/1.15 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;letter-spacing:-.01em}
 header p{margin:2px 0 0;color:var(--mut);font-size:13px}
 main{padding:16px 16px calc(96px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto;position:relative;z-index:1}
-/* marquage : signature en fond, au bas de chaque écran */
-#marque{display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;opacity:.35;margin:-56px 0 0;padding-bottom:calc(110px + env(safe-area-inset-bottom))}
-#marque img{width:140px;height:140px;border-radius:50%;object-fit:cover;filter:saturate(.7)}
-#marque span{font:700 16px var(--num);color:var(--mut)}
+/* marquage : signature en fond, au bas de chaque écran (le texte est dans l'image) */
+#marque{display:flex;justify-content:center;pointer-events:none;opacity:.5;margin:-48px 0 0;padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+#marque img{width:170px;height:auto}
+/* accueil : image et explicatif en haut de la page Séance */
+.accueil{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.accueil img{width:108px;height:auto;flex:none}
+.accueil p{margin:0;font-size:14px;line-height:1.5;color:var(--mut)}
+.accueil b{color:var(--txt)}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:10}
 nav button{flex:1;background:none;border:0;color:var(--mut);padding:8px 0 6px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit}
 nav svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -207,7 +211,7 @@ textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
 <header><div class="hd"><div><h1 id="title">Séance</h1><p id="subtitle"></p></div>
   <button id="tbtn" class="tbtn" aria-label="Repos en cours" onclick="openTimer()" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M18.5 6.5l1.5-1.5"/></svg><span id="tpill"></span></button></div></header>
 <main id="main"></main>
-<div id="marque" aria-hidden="true"><img src="romu.jpg" alt=""><span>La muscu à Romu</span></div>
+<div id="marque" aria-hidden="true"><img src="romu.jpg" alt=""></div>
 <nav>
   <button data-t="seance" class="on"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg>Séance</button>
   <button data-t="histo"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Historique</button>
@@ -256,7 +260,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '22';
+const APP_VERSION = '23';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -411,7 +415,10 @@ function vSeance(m) {
     </div>`;
   }
 
-  m.innerHTML = execCard(f.date, day) + progHTML + `
+  m.innerHTML = `
+  <div class="accueil"><img src="romu.jpg" alt="Muscu à Romu">
+    <p><b>Bienvenue !</b> Saisissez votre <b>séance libre</b> ci-dessous, exercice par exercice. Pour vos entraînements habituels, créez un <b>programme</b> dans l'onglet Programmes : il se lancera ensuite en un geste.</p></div>
+  ` + execCard(f.date, day) + progHTML + `
   <div class="card" id="formcard"><h2>${editId ? 'Modifier l’exercice' : 'Ajouter un exercice à la séance'}</h2>
     <div class="row">
       <div><label>Date</label><input type="date" value="${f.date}" onchange="F.date=this.value||todayStr();render()"></div>
