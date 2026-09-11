@@ -261,7 +261,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '29';
+const APP_VERSION = '30';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -942,6 +942,7 @@ function vProg(m) {
         <button class="btn sm pri" onclick="startProg('${p.id}')">▶ Démarrer la séance</button>
         <button class="btn sm" onclick="exportICS('${p.id}')">Ajouter les rappels</button>
         <button class="btn sm" onclick="editP('${p.id}')">Modifier</button>
+        <button class="btn sm" onclick="dupProg('${p.id}')">Dupliquer</button>
         <button class="btn sm danger" onclick="delProg('${p.id}')">Supprimer</button>
       </div></div>`).join('') || `<div class="card empty">Un programme regroupe vos mouvements sous un nom, par exemple « Full body », « Haut du corps » ou « Cuisses, performance ». Choisissez ensuite ses jours et son heure pour recevoir des rappels.</div>`}`;
 }
@@ -978,6 +979,12 @@ function progEditor() {
 }
 function newProg() { editProg = {id: uid(), name: '', days: [], time: '18:00', alarm: 30, items: []}; render(); window.scrollTo(0, 0); }
 function editP(id) { editProg = JSON.parse(JSON.stringify(db.programs.find(p => p.id === id))); render(); window.scrollTo(0, 0); }
+/* Dupliquer : ouvre la copie dans l'éditeur, à renommer puis enregistrer */
+function dupProg(id) {
+  const p = db.programs.find(x => x.id === id); if (!p) return;
+  editProg = Object.assign(JSON.parse(JSON.stringify(p)), {id: uid(), name: p.name + ' (copie)'});
+  render(); window.scrollTo(0, 0);
+}
 function togDay(d) { const a = editProg.days; const i = a.indexOf(d); if (i < 0) a.push(d); else a.splice(i, 1); render(); }
 function moveItem(i, dir) { const a = editProg.items, j = i + dir; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; render(); }
 function saveProg() {
@@ -1202,11 +1209,13 @@ function libInfo(k) {
   const x = LIB[i]; libCur = i;
   $('#lsheet').innerHTML = `<h2>${h(x[1])}</h2>
     <p class="muted" style="margin:4px 0 0">${ZONES[x[2]]}${plain(MU[x[4]]) !== plain(ZONES[x[2]]) ? ', ' + MU[x[4]] : ''}, ${EQ[x[3]]}</p>
-    ${x[0].startsWith('fr_') ? '<p class="muted" style="margin:10px 0 14px">Pas de photo pour ce mouvement.</p>' : `<div class="photos"><img src="${IMG}${x[0]}/0.jpg" alt="Position de départ" onerror="imgErr(this)"><img src="${IMG}${x[0]}/1.jpg" alt="Position d’arrivée" onerror="imgErr(this)"></div>`}
+    ${x[0].startsWith('fr_') ? `<button class="btn full" style="margin:10px 0 14px" onclick="imgSearch('${encodeURIComponent(x[1]).replace(/'/g, '%27')}')">Pas de photo — voir des images sur internet</button>` : `<div class="photos"><img src="${IMG}${x[0]}/0.jpg" alt="Position de départ" onerror="imgErr(this)"><img src="${IMG}${x[0]}/1.jpg" alt="Position d’arrivée" onerror="imgErr(this)"></div>`}
     ${pickOpen ? `<button class="btn pri full" onclick="choosePick('lib:${x[0]}')">Choisir ce mouvement</button>` : isAdded(x) ? '<p class="muted" style="margin:0 0 10px">Déjà dans vos mouvements.</p>' : `<button class="btn pri full" onclick="addLib(${i})">Ajouter à mes mouvements</button>`}
     <button class="btn ghost full gap" onclick="closeLib()">Fermer</button>`;
   $('#lmodal').classList.add('open');
 }
+/* Recherche d'images sur internet (s'ouvre dans le navigateur) pour les mouvements sans photo */
+function imgSearch(q) { window.open('https://www.google.com/search?udm=2&q=' + q + '%20exercice%20musculation', '_blank'); }
 function imgErr(el) { const p = el.closest('.photos'); if (p) p.innerHTML = '<p class="muted" style="grid-column:1/-1;margin:0">Photos indisponibles sans connexion internet.</p>'; }
 function closeLib() { $('#lmodal').classList.remove('open'); libCur = -1; }
 
@@ -1217,6 +1226,7 @@ function openPicker() {
   PZ = z === 'full' ? '' : z; PQ = ''; PALL = false; pickOpen = true;
   $('#psheet').innerHTML = `<div class="phead"><h2>Choisir un mouvement</h2><button class="icon" aria-label="Fermer" onclick="closePicker()">✕</button></div>
     <input type="search" placeholder="Rechercher : pompes, squat, gainage…" oninput="PQ=this.value;drawPicker()">
+    <p class="s" style="margin:8px 0 0">📷 photos du mouvement disponibles · 🔎 chercher des images sur internet</p>
     <div class="chips" style="margin:10px 0 8px"><button class="pill" id="pbw" onclick="PBW=!PBW;db.pickBw=PBW;save();drawPicker()">Poids du corps uniquement</button></div>
     <div class="chips" id="pzones" style="margin-bottom:4px"></div>
     <div class="plist" id="plist"></div>`;
@@ -1234,7 +1244,8 @@ function drawPicker() {
   const lib = LIB.filter(x => !isAdded(x) && (!PZ || x[2] === PZ) && (!PBW || x[3] === 2) && okQ(x[1]));
   const row = (v, name, z, sub, libId) => `<div class="item"><div class="prow" onclick="choosePick('${v}')">${tile(z, 'sm')}
       <div class="grow"><div class="t">${h(name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div></div>
-      ${libId && !libId.startsWith('fr_') ? `<button class="icon" aria-label="Voir les photos" onclick="libInfo('${libId}')">📷</button>` : ''}</div>`;
+      ${libId && !libId.startsWith('fr_') ? `<button class="icon" aria-label="Voir les photos" onclick="libInfo('${libId}')">📷</button>`
+        : `<button class="icon" aria-label="Chercher des images sur internet" onclick="imgSearch('${encodeURIComponent(name).replace(/'/g, '%27')}')">🔎</button>`}</div>`;
   const max = 200;
   let html = '';
   html += `<div class="psec">Mes mouvements enregistrés (${mine.length})</div>` + (mine.length
