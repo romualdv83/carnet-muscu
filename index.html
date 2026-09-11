@@ -267,7 +267,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '32';
+const APP_VERSION = '33';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -1063,10 +1063,13 @@ function vSettings(m) {
       <div class="item"><div class="grow"><div class="t">Entre les exercices</div><div class="s">Mise en place du matériel comprise</div></div><button class="btn sm" onclick="restDefaults('ex')">${fmtRest(restEx())}</button></div></div>
     <div class="card"><h2>Sauvegarde</h2>
       <p class="muted" style="margin-top:-6px">Vos données restent sur cet appareil. ${db.backupLast ? 'Dernière sauvegarde : ' + frDate(new Date(db.backupLast).toISOString().slice(0, 10)) + '.' : 'Aucune sauvegarde pour l’instant.'}</p>
+      <div class="field"><label>Nom du fichier de sauvegarde</label>
+        <input value="${h(db.backupName || '')}" placeholder="muscu-sauvegarde" onchange="db.backupName=this.value;save()">
+        <p class="s" style="margin:4px 0 0">La date du jour s’ajoute automatiquement : ${h(bkName())}-${todayStr()}.json</p></div>
       <div class="field"><label>Me proposer de sauvegarder</label>
         <select onchange="db.backupFreq=+this.value;save()">${[[1, 'Chaque jour'], [7, 'Chaque semaine'], [30, 'Chaque mois'], [0, 'Jamais']].map(([v, l]) => `<option value="${v}"${v === bkFreq() ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       ${FSA ? (db.backupDirName
-        ? `<div class="item"><div class="grow"><div class="t">Sauvegarde automatique activée</div><div class="s">À chaque modification, dans le dossier « ${h(db.backupDirName)} » (fichier muscu-sauvegarde.json)</div></div></div>
+        ? `<div class="item"><div class="grow"><div class="t">Sauvegarde automatique activée</div><div class="s">À chaque modification, dans le dossier « ${h(db.backupDirName)} » (fichier ${h(bkName())}.json)</div></div></div>
            <div style="display:flex;gap:8px"><button class="btn sm" onclick="writeAutoBackup(true)">Sauvegarder maintenant</button><button class="btn sm danger" onclick="stopBackupDir()">Désactiver</button></div>`
         : `<button class="btn full" onclick="chooseBackupDir()">Sauvegarde automatique dans un dossier…</button>
            <p class="muted" style="margin:6px 0 0">Choisissez un dossier une fois : vos données y seront ensuite écrites automatiquement à chaque modification.</p>`)
@@ -1105,8 +1108,10 @@ function delItem(key, id) {
   if (!confirm(msg)) return;
   db[key] = db[key].filter(x => x.id !== id); save(); render(); toast('Supprimé');
 }
+/* Nom de fichier choisi par l'utilisateur, nettoyé des caractères interdits dans un nom */
+const bkName = () => ((db.backupName || '').replace(/[\\/:*?"<>|]/g, '').trim() || 'muscu-sauvegarde');
 function exportJSON() {
-  download('muscu-sauvegarde-' + todayStr() + '.json', JSON.stringify(db, null, 1), 'application/json');
+  download(bkName() + '-' + todayStr() + '.json', JSON.stringify(db, null, 1), 'application/json');
   db.backupLast = Date.now(); save();
   const b = $('#bkban'); if (b) b.hidden = true;
 }
@@ -1141,7 +1146,7 @@ async function writeAutoBackup(interactive) {
       if (!interactive) return; // la ré-autorisation exige un geste : bouton « Sauvegarder maintenant »
       p = await h.requestPermission({mode: 'readwrite'}); if (p !== 'granted') return;
     }
-    const f = await h.getFileHandle('muscu-sauvegarde.json', {create: true});
+    const f = await h.getFileHandle(bkName() + '.json', {create: true});
     const w = await f.createWritable(); await w.write(JSON.stringify(db, null, 1)); await w.close();
     // écrire la date sans repasser par save(), qui replanifierait une écriture
     db.backupLast = Date.now(); localStorage.setItem(KEY, JSON.stringify(db));
