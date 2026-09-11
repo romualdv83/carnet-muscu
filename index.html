@@ -261,7 +261,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '30';
+const APP_VERSION = '31';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -1182,10 +1182,12 @@ function libFiltered() {
 function drawLib() {
   if (!$('#liblist')) return;
   const list = libFiltered(), max = 150, toAdd = list.filter(([x]) => !isAdded(x)).length;
-  $('#libhead').innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-    <b>${list.length} mouvement${list.length > 1 ? 's' : ''}</b>${toAdd ? `<button class="btn sm" onclick="addAllLib()">Tout ajouter (${toAdd})</button>` : ''}</div>`;
+  $('#libhead').innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">
+    <b>${list.length} mouvement${list.length > 1 ? 's' : ''}</b>${toAdd ? `<button class="btn sm" onclick="addAllLib()">Tout ajouter (${toAdd})</button>` : ''}</div>
+    <p class="s" style="margin:0 0 6px">📷 photos du mouvement disponibles · 🔎 chercher des images sur internet</p>`;
   $('#liblist').innerHTML = (list.slice(0, max).map(([x, i]) => `<div class="item">${tile(x[2], 'sm')}
       <div class="grow" style="cursor:pointer" onclick="libInfo(${i})"><div class="t">${h(x[1])}</div><div class="s">${EQ[x[3]]}, ${MU[x[4]]}</div></div>
+      ${x[0].startsWith('fr_') ? `<button class="icon" aria-label="Chercher des images sur internet" onclick="imgSearch('${encodeURIComponent(x[1]).replace(/'/g, '%27')}')">🔎</button>` : `<button class="icon" aria-label="Voir les photos" onclick="libInfo(${i})">📷</button>`}
       ${isAdded(x) ? '<span class="check" aria-label="Déjà ajouté">✓</span>' : `<button class="btn sm" onclick="addLib(${i})">Ajouter</button>`}</div>`).join('')
     || '<div class="empty">Aucun mouvement ne correspond à cette recherche.</div>')
     + (list.length > max ? `<div class="empty">Et ${list.length - max} autres : précisez la recherche ou choisissez une partie du corps.</div>` : '');
