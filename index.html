@@ -28,6 +28,7 @@ header h1{margin:0;font:600 22px/1.15 -apple-system,BlinkMacSystemFont,system-ui
 header p{margin:2px 0 0;color:var(--mut);font-size:13px}
 main{padding:16px 16px calc(96px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto;position:relative;z-index:1}
 /* marquage : signature en fond, au bas de chaque écran (le texte est dans l'image) */
+#marque[hidden]{display:none}
 #marque{display:flex;justify-content:center;pointer-events:none;opacity:.5;margin:-48px 0 0;padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 #marque img{width:170px;height:auto}
 /* accueil : image et explicatif en haut de la page Séance */
@@ -260,7 +261,7 @@ function download(name, text, type) {
 
 /* ---------- Données (stockées sur l'iPhone) ---------- */
 const KEY = 'forenix-muscu-v1';
-const APP_VERSION = '23';
+const APP_VERSION = '24';
 function seed() {
   const L = a => a.map(name => ({id: uid(), name}));
   return {
@@ -367,6 +368,8 @@ function show(t) {
   render(); window.scrollTo(0, 0);
 }
 function render() {
+  // la page Séance porte déjà l'image en accueil : pas de filigrane en plus
+  $('#marque').hidden = tab === 'seance';
   $('#title').textContent = TITLES[tab];
   const sub = frDate(todayStr());
   $('#subtitle').textContent = sub.charAt(0).toUpperCase() + sub.slice(1);
